@@ -1,4 +1,4 @@
-pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal(); maven { url = uri("https://maven.rikka.dev/releases") } } }
+pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal(); maven { url = uri("https://maven.rikka.dev/release") } } }
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral(); maven { url = uri("https://maven.rikka.dev/releases") } } }
 rootProject.name = "ChargeStop85"
 include(":app")
