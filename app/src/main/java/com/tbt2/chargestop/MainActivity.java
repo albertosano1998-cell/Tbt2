@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.os.BatteryManager;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
@@ -94,6 +96,21 @@ public class MainActivity extends Activity {
 
             scanText = makeText("Not scanned yet. The scan is read-only; it will not change charging.", 14, false);
             root.addView(scanText);
+            Button copy = new Button(this);
+            copy.setText("COPY SCAN RESULTS");
+            copy.setOnClickListener(v -> {
+                String result = scanText == null ? "" : scanText.getText().toString();
+                if (result.trim().isEmpty() || result.startsWith("Not scanned yet")) {
+                    Toast.makeText(this, "Run the scan first.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Charge Stop scan results", result));
+                    Toast.makeText(this, "Scan results copied. Paste them into ChatGPT.", Toast.LENGTH_LONG).show();
+                }
+            });
+            root.addView(copy);
             root.addView(makeText(
                 "Important: this version does not yet cut off charging. It checks whether Shizuku can see likely device-specific control files. A writable file is not enough by itself—we must confirm its meaning before safely using it to stop and resume charging.",
                 14, false));
@@ -193,14 +210,16 @@ public class MainActivity extends Activity {
     private String runReadOnlyScan() {
         String script =
             "echo 'Shell identity:'; id; " +
-            "echo; echo 'Power supply entries:'; ls -la /sys/class/power_supply 2>&1; " +
-            "echo; echo 'Battery and charger names:'; cat /sys/class/power_supply/*/type 2>/dev/null; " +
-            "echo; echo 'Matching controls under sysfs (read-only):'; " +
-            "for base in /sys/class/power_supply /sys/devices/platform /sys/devices/platform/soc; do " +
-            "if [ -d \"$base\" ]; then find \"$base\" -maxdepth 7 -type f \\( -iname '*charg*' -o -iname '*suspend*' -o -iname '*enable*' -o -iname '*limit*' -o -iname '*current*' \\) 2>/dev/null; fi; done | head -100; " +
-            "echo; echo 'Known control candidates and values:'; " +
-            "for p in /sys/class/power_supply/*/charging_enabled /sys/class/power_supply/*/charge_disable /sys/class/power_supply/*/input_suspend /sys/class/power_supply/*/charge_control_limit /sys/class/power_supply/*/constant_charge_current_max /sys/devices/platform/*charger*/charging_enabled /sys/devices/platform/*charger*/enable_charger /sys/devices/platform/*charger*/charge_enable; do " +
-            "if [ -e \"$p\" ]; then echo \"FOUND: $p\"; if [ -r \"$p\" ]; then printf '  value: '; head -c 120 \"$p\" 2>&1; echo; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES'; else echo '  shell_writable: NO'; fi; fi; done";
+            "echo; echo 'Power supply directories and types:'; " +
+            "for d in /sys/class/power_supply/* /sys/devices/platform/mt_charger/power_supply/* /sys/devices/platform/mtk_charger/power_supply/* /sys/devices/platform/mtk-charger/power_supply/*; do " +
+            "if [ -d \"$d\" ]; then echo \"DIR: $d\"; for n in type status online present health capacity charge_type usb_type; do if [ -r \"$d/$n\" ]; then printf '  %s=' \"$n\"; head -c 100 \"$d/$n\" 2>/dev/null; echo; fi; done; fi; done; " +
+            "echo; echo 'Likely charging controls (read-only inspection):'; " +
+            "for base in /sys/class/power_supply /sys/devices/platform/mt_charger/power_supply /sys/devices/platform/mtk_charger/power_supply /sys/devices/platform/mtk-charger/power_supply; do " +
+            "if [ -d \"$base\" ]; then find \"$base\" -maxdepth 5 -type f \\( -iname '*charg*' -o -iname '*suspend*' -o -iname '*enable*' -o -iname '*limit*' -o -iname '*current*' -o -iname '*disable*' \\) 2>/dev/null; fi; done | head -140; " +
+            "echo; echo 'Candidate values and shell permissions:'; " +
+            "for d in /sys/class/power_supply/* /sys/devices/platform/mt_charger/power_supply/* /sys/devices/platform/mtk_charger/power_supply/* /sys/devices/platform/mtk-charger/power_supply/*; do " +
+            "if [ -d \"$d\" ]; then for n in charging_enabled charge_disable input_suspend charge_control_limit constant_charge_current_max enable_charger charge_enable charge_full_design; do p=\"$d/$n\"; if [ -e \"$p\" ]; then echo \"FOUND: $p\"; if [ -r \"$p\" ]; then printf '  value: '; head -c 100 \"$p\" 2>&1; echo; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES'; else echo '  shell_writable: NO'; fi; fi; done; fi; done; " +
+            "echo; echo 'No files were written.'";
         try {
             Method method = Shizuku.class.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
             method.setAccessible(true);
