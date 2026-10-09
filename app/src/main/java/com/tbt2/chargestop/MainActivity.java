@@ -193,26 +193,14 @@ public class MainActivity extends Activity {
     private String runReadOnlyScan() {
         String script =
             "echo 'Shell identity:'; id; " +
-            "echo; echo 'Candidate charging controls (read-only):'; " +
-            "for p in " +
-            "/sys/class/power_supply/battery/charging_enabled " +
-            "/sys/class/power_supply/battery/charge_disable " +
-            "/sys/class/power_supply/battery/input_suspend " +
-            "/sys/class/power_supply/battery/charge_control_limit " +
-            "/sys/class/power_supply/charger/charging_enabled " +
-            "/sys/class/power_supply/charger/charge_disable " +
-            "/sys/devices/platform/charger/charging_enabled " +
-            "/sys/devices/platform/charger/enable_charger " +
-            "/sys/devices/platform/charger/charge_enable " +
-            "/sys/devices/platform/mtk-charger/charging_enabled " +
-            "/sys/devices/platform/mtk-charger/enable_charger; do " +
-            "if [ -e \"$p\" ]; then " +
-            "echo \"FOUND: $p\"; " +
-            "if [ -r \"$p\" ]; then printf '  value: '; head -c 120 \"$p\" 2>&1; echo; else echo '  value: not readable by shell'; fi; " +
-            "if [ -w \"$p\" ]; then echo '  shell_writable: YES'; else echo '  shell_writable: NO'; fi; " +
-            "fi; done; echo; " +
-            "echo 'Other matching names under power_supply:'; " +
-            "find /sys/class/power_supply -maxdepth 4 -type f \\( -iname '*charg*' -o -iname '*suspend*' -o -iname '*enable*' -o -iname '*limit*' \\) 2>/dev/null | head -60";
+            "echo; echo 'Power supply entries:'; ls -la /sys/class/power_supply 2>&1; " +
+            "echo; echo 'Battery and charger names:'; cat /sys/class/power_supply/*/type 2>/dev/null; " +
+            "echo; echo 'Matching controls under sysfs (read-only):'; " +
+            "for base in /sys/class/power_supply /sys/devices/platform /sys/devices/platform/soc; do " +
+            "if [ -d \"$base\" ]; then find \"$base\" -maxdepth 7 -type f \\( -iname '*charg*' -o -iname '*suspend*' -o -iname '*enable*' -o -iname '*limit*' -o -iname '*current*' \\) 2>/dev/null; fi; done | head -100; " +
+            "echo; echo 'Known control candidates and values:'; " +
+            "for p in /sys/class/power_supply/*/charging_enabled /sys/class/power_supply/*/charge_disable /sys/class/power_supply/*/input_suspend /sys/class/power_supply/*/charge_control_limit /sys/class/power_supply/*/constant_charge_current_max /sys/devices/platform/*charger*/charging_enabled /sys/devices/platform/*charger*/enable_charger /sys/devices/platform/*charger*/charge_enable; do " +
+            "if [ -e \"$p\" ]; then echo \"FOUND: $p\"; if [ -r \"$p\" ]; then printf '  value: '; head -c 120 \"$p\" 2>&1; echo; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES'; else echo '  shell_writable: NO'; fi; fi; done";
         try {
             Method method = Shizuku.class.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
             method.setAccessible(true);
