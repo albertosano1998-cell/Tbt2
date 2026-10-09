@@ -1,0 +1,17 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.tbt2.chargestop'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.tbt2.chargestop'
+        minSdk 26
+        targetSdk 28
+        versionCode 1
+        versionName '0.1.0'
+    }
+}
+
+dependencies {
+    implementation 'rikka.shizuku:api:13.1.5'
+}
