@@ -6,34 +6,56 @@ import android.os.BatteryManager;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.SeekBar;
 import android.widget.ScrollView;
+import android.widget.Button;
+import android.widget.Toast;
+import android.os.Handler;
+import android.os.Looper;
+
+import rikka.shizuku.Shizuku;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private TextView batteryText, statusText, limitText;
+    private TextView batteryText, statusText, limitText, shizukuText, scanText;
     private int limit = 85;
     private SharedPreferences prefs;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable refresher = new Runnable() {
+        @Override public void run() {
+            refreshBattery();
+            updateShizukuStatus();
+            handler.postDelayed(this, 10000);
+        }
+    };
+    private final Shizuku.OnRequestPermissionResultListener permissionListener =
+        (requestCode, grantResult) -> runOnUiThread(this::updateShizukuStatus);
 
-    @Override
-    public void onCreate(Bundle state) {
+    @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences("charge_stop", MODE_PRIVATE);
         limit = Math.max(75, Math.min(95, prefs.getInt("limit", 85)));
         try {
+            Shizuku.addRequestPermissionResultListener(permissionListener);
             ScrollView scroll = new ScrollView(this);
             LinearLayout root = new LinearLayout(this);
             root.setOrientation(LinearLayout.VERTICAL);
-            root.setPadding(32, 32, 32, 32);
+            root.setPadding(32, 28, 32, 32);
             root.setGravity(Gravity.CENTER_HORIZONTAL);
             scroll.addView(root);
 
-            TextView title = makeText("Charge Stop 85", 28, true);
-            root.addView(title);
-            root.addView(makeText("Battery monitor • Android 11+", 15, false));
+            root.addView(makeText("Charge Stop 85", 28, true));
+            root.addView(makeText("Shizuku charging-control diagnostic", 15, false));
             batteryText = makeText("Battery: reading…", 24, true);
             root.addView(batteryText);
             statusText = makeText("Checking charging state…", 17, true);
@@ -47,21 +69,40 @@ public class MainActivity extends Activity {
             limitText = makeText(limit + "%", 22, true);
             root.addView(limitText);
             seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                     limit = 75 + progress;
                     limitText.setText(limit + "%");
                     if (fromUser) prefs.edit().putInt("limit", limit).apply();
                     refreshBattery();
                 }
-                public void onStartTrackingTouch(SeekBar bar) {}
-                public void onStopTrackingTouch(SeekBar bar) {}
+                @Override public void onStartTrackingTouch(SeekBar bar) {}
+                @Override public void onStopTrackingTouch(SeekBar bar) {}
             });
-            root.addView(makeText("Important: this diagnostic build only monitors battery level. It does not stop charging automatically. Automatic cutoff requires a device-specific charging control.", 15, false));
+
+            shizukuText = makeText("Shizuku: checking…", 16, true);
+            root.addView(shizukuText);
+
+            Button connect = new Button(this);
+            connect.setText("Connect / grant Shizuku");
+            connect.setOnClickListener(v -> requestShizuku());
+            root.addView(connect);
+
+            Button scan = new Button(this);
+            scan.setText("Scan charging-control interfaces");
+            scan.setOnClickListener(v -> scanControls());
+            root.addView(scan);
+
+            scanText = makeText("Not scanned yet. The scan is read-only; it will not change charging.", 14, false);
+            root.addView(scanText);
+            root.addView(makeText(
+                "Important: this version does not yet cut off charging. It checks whether Shizuku can see likely device-specific control files. A writable file is not enough by itself—we must confirm its meaning before safely using it to stop and resume charging.",
+                14, false));
             setContentView(scroll);
             refreshBattery();
+            updateShizukuStatus();
         } catch (Throwable error) {
             TextView fallback = new TextView(this);
-            fallback.setText("Charge Stop 85 could not build its screen: " + error.getClass().getSimpleName());
+            fallback.setText("Charge Stop 85 startup error: " + error.getClass().getSimpleName());
             setContentView(fallback);
         }
     }
@@ -71,7 +112,7 @@ public class MainActivity extends Activity {
         view.setText(value);
         view.setTextSize(size);
         if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        view.setPadding(0, 10, 0, 10);
+        view.setPadding(0, 8, 0, 8);
         return view;
     }
 
@@ -85,9 +126,130 @@ public class MainActivity extends Activity {
             int plugged = battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
             batteryText.setText("Battery: " + (percent >= 0 ? percent + "%" : "unknown"));
             statusText.setText(plugged == 0 ? "Charger: disconnected" :
-                    (percent >= limit ? "Target reached — charging may continue" : "Charger: connected"));
+                (percent >= limit ? "Target reached — charging may continue" : "Charger: connected"));
         } catch (Throwable ignored) {
             if (statusText != null) statusText.setText("Battery status unavailable");
         }
+    }
+
+    private void requestShizuku() {
+        try {
+            if (!Shizuku.pingBinder()) {
+                Toast.makeText(this, "Start Shizuku first, then tap Connect again.", Toast.LENGTH_LONG).show();
+                updateShizukuStatus();
+                return;
+            }
+            if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                Shizuku.requestPermission(85);
+            } else {
+                Toast.makeText(this, "Shizuku permission is already granted.", Toast.LENGTH_SHORT).show();
+            }
+            updateShizukuStatus();
+        } catch (Throwable error) {
+            if (shizukuText != null) shizukuText.setText("Shizuku unavailable: " + error.getClass().getSimpleName());
+        }
+    }
+
+    private void updateShizukuStatus() {
+        if (shizukuText == null) return;
+        try {
+            if (!Shizuku.pingBinder()) {
+                shizukuText.setText("Shizuku: not running");
+            } else if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                shizukuText.setText("Shizuku: connected; permission granted");
+            } else {
+                shizukuText.setText("Shizuku: running; permission needed");
+            }
+        } catch (Throwable error) {
+            shizukuText.setText("Shizuku status unavailable");
+        }
+    }
+
+    private void scanControls() {
+        try {
+            if (!Shizuku.pingBinder()) {
+                scanText.setText("Shizuku is not running. Start it, then tap Scan again.");
+                return;
+            }
+            if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                Shizuku.requestPermission(85);
+                scanText.setText("Grant the Shizuku permission prompt, then tap Scan again.");
+                return;
+            }
+        } catch (Throwable error) {
+            scanText.setText("Cannot connect to Shizuku: " + error.getClass().getSimpleName());
+            return;
+        }
+
+        scanText.setText("Scanning read-only controls…");
+        new Thread(() -> {
+            String result = runReadOnlyScan();
+            runOnUiThread(() -> {
+                if (scanText != null) scanText.setText(result);
+            });
+        }, "charging-control-scan").start();
+    }
+
+    private String runReadOnlyScan() {
+        String script =
+            "echo 'Shell identity:'; id; " +
+            "echo; echo 'Candidate charging controls (read-only):'; " +
+            "for p in " +
+            "/sys/class/power_supply/battery/charging_enabled " +
+            "/sys/class/power_supply/battery/charge_disable " +
+            "/sys/class/power_supply/battery/input_suspend " +
+            "/sys/class/power_supply/battery/charge_control_limit " +
+            "/sys/class/power_supply/charger/charging_enabled " +
+            "/sys/class/power_supply/charger/charge_disable " +
+            "/sys/devices/platform/charger/charging_enabled " +
+            "/sys/devices/platform/charger/enable_charger " +
+            "/sys/devices/platform/charger/charge_enable " +
+            "/sys/devices/platform/mtk-charger/charging_enabled " +
+            "/sys/devices/platform/mtk-charger/enable_charger; do " +
+            "if [ -e \"$p\" ]; then " +
+            "echo \"FOUND: $p\"; " +
+            "if [ -r \"$p\" ]; then printf '  value: '; head -c 120 \"$p\" 2>&1; echo; else echo '  value: not readable by shell'; fi; " +
+            "if [ -w \"$p\" ]; then echo '  shell_writable: YES'; else echo '  shell_writable: NO'; fi; " +
+            "fi; done; echo; " +
+            "echo 'Other matching names under power_supply:'; " +
+            "find /sys/class/power_supply -maxdepth 4 -type f \\( -iname '*charg*' -o -iname '*suspend*' -o -iname '*enable*' -o -iname '*limit*' \\) 2>/dev/null | head -60";
+        try {
+            Method method = Shizuku.class.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
+            method.setAccessible(true);
+            Object process = method.invoke(null, new String[]{"sh", "-c", script}, null, null);
+            Method getInputStream = process.getClass().getMethod("getInputStream");
+            InputStream input = (InputStream) getInputStream.invoke(process);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null && output.length() < 9000) {
+                output.append(line).append('\n');
+            }
+            try { process.getClass().getMethod("waitFor").invoke(process); } catch (Throwable ignored) {}
+            if (output.length() == 0) return "Scan returned no output. Check Shizuku and try again.";
+            return output.toString();
+        } catch (Throwable error) {
+            Throwable cause = error.getCause() != null ? error.getCause() : error;
+            return "Scan failed: " + cause.getClass().getSimpleName() + ": " +
+                (cause.getMessage() == null ? "no details" : cause.getMessage()) +
+                "\nNo charging settings were changed.";
+        }
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        handler.removeCallbacks(refresher);
+        handler.post(refresher);
+    }
+
+    @Override protected void onPause() {
+        handler.removeCallbacks(refresher);
+        super.onPause();
+    }
+
+    @Override protected void onDestroy() {
+        handler.removeCallbacks(refresher);
+        try { Shizuku.removeRequestPermissionResultListener(permissionListener); } catch (Throwable ignored) {}
+        super.onDestroy();
     }
 }
