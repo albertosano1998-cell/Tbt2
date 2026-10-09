@@ -1,89 +1,51 @@
 package com.tbt2.chargestop;
-
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.BatteryManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Button;
 import android.widget.SeekBar;
+import android.widget.ScrollView;
 import android.widget.Toast;
+import android.os.Handler;
+import android.os.Looper;
 import rikka.shizuku.Shizuku;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class MainActivity extends Activity {
-    private TextView batteryText, statusText, shizukuText;
-    private int limit = 85;
-    private final Shizuku.OnRequestPermissionResultListener permissionListener = (requestCode, grantResult) ->
-        runOnUiThread(() -> updateShizukuStatus());
-
-    @Override public void onCreate(Bundle state) {
-        super.onCreate(state);
-        Shizuku.addRequestPermissionResultListener(permissionListener);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(28, 36, 28, 24);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(0xFFF4F6FA);
-        TextView title = text("Charge Stop 85", 28, true);
-        root.addView(title);
-        root.addView(text("Battery limit helper • Shizuku, no root", 14, false));
-        batteryText = text("Battery: reading…", 24, true);
-        LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(-1, -2); gap.topMargin = 36;
-        root.addView(batteryText, gap);
-        statusText = text("Charging control: not verified", 16, true);
-        root.addView(statusText);
-        root.addView(text("Cutoff threshold (%)", 16, true));
-        SeekBar seek = new SeekBar(this); seek.setMax(15); seek.setProgress(10);
-        root.addView(seek);
-        TextView limitText = text("85%", 20, true); root.addView(limitText);
-        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            public void onProgressChanged(SeekBar b, int p, boolean user) { limit = 75 + p; limitText.setText(limit + "%"); }
-            public void onStartTrackingTouch(SeekBar b) {}
-            public void onStopTrackingTouch(SeekBar b) {}
-        });
-        shizukuText = text("Checking Shizuku…", 15, false); root.addView(shizukuText);
-        Button grant = new Button(this); grant.setText("Grant Shizuku permission");
-        grant.setOnClickListener(v -> {
-            if (!Shizuku.pingBinder()) Toast.makeText(this, "Start Shizuku first.", Toast.LENGTH_LONG).show();
-            else if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) Shizuku.requestPermission(1001);
-            else Toast.makeText(this, "Shizuku permission already granted.", Toast.LENGTH_SHORT).show();
-            updateShizukuStatus();
-        });
-        root.addView(grant);
-        TextView note = text("Important: Android cannot stop charging through a normal app. This prototype monitors battery level and checks Shizuku availability, but does NOT claim to disconnect charging until a compatible Infinix charging-control interface is identified and tested.", 14, false);
-        LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(-1, -2); noteParams.topMargin = 24; root.addView(note, noteParams);
-        setContentView(root);
-        refreshBattery();
-        updateShizukuStatus();
-    }
-
-    private TextView text(String s, int size, boolean bold) {
-        TextView t = new TextView(this); t.setText(s); t.setTextSize(size); t.setTextColor(0xFF172033);
-        if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        t.setPadding(0, 8, 0, 8); return t;
-    }
-    private void refreshBattery() {
-        Intent i = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-        if (i == null) return;
-        int level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
-        int pct = scale > 0 ? level * 100 / scale : level;
-        int plugged = i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
-        batteryText.setText("Battery: " + pct + "%");
-        statusText.setText(plugged == 0 ? "Charger: disconnected" : (pct >= limit ? "Threshold reached — cutoff not yet supported" : "Charger: connected"));
-    }
-    private void updateShizukuStatus() {
-        if (shizukuText == null) return;
-        boolean running = Shizuku.pingBinder();
-        shizukuText.setText(!running ? "Shizuku: not running" :
-            Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED ? "Shizuku: connected and permission granted" : "Shizuku: running; permission not granted");
-        refreshBattery();
-    }
-    @Override protected void onResume() { super.onResume(); updateShizukuStatus(); }
-    @Override protected void onDestroy() { Shizuku.removeRequestPermissionResultListener(permissionListener); super.onDestroy(); }
+ private TextView batteryText,statusText,shizukuText,scanText,limitText;
+ private int limit=85;
+ private final Handler handler=new Handler(Looper.getMainLooper());
+ private final Runnable refresher=new Runnable(){ public void run(){refreshBattery();updateShizukuStatus();handler.postDelayed(this,10000);} };
+ private final Shizuku.OnRequestPermissionResultListener permissionListener=(requestCode,grantResult)->runOnUiThread(this::updateShizukuStatus);
+ @Override public void onCreate(Bundle state){
+  super.onCreate(state);
+  SharedPreferences prefs=getSharedPreferences("charge_stop",MODE_PRIVATE); limit=prefs.getInt("limit",85);
+  Shizuku.addRequestPermissionResultListener(permissionListener);
+  ScrollView scroll=new ScrollView(this); LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(28,28,28,28); root.setGravity(Gravity.CENTER_HORIZONTAL); root.setBackgroundColor(0xFFF4F6FA); scroll.addView(root);
+  root.addView(text("Charge Stop 85",28,true)); root.addView(text("Charging limit diagnostics • no root",14,false));
+  batteryText=text("Battery: reading…",24,true); root.addView(batteryText); statusText=text("Charging state: checking…",16,true); root.addView(statusText);
+  root.addView(text("Target limit (%)",16,true)); SeekBar seek=new SeekBar(this); seek.setMax(20); seek.setProgress(limit-75); root.addView(seek); limitText=text(limit+"%",20,true); root.addView(limitText);
+  seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){ public void onProgressChanged(SeekBar b,int p,boolean user){limit=75+p;limitText.setText(limit+"%");if(user)prefs.edit().putInt("limit",limit).apply();refreshBattery();} public void onStartTrackingTouch(SeekBar b){} public void onStopTrackingTouch(SeekBar b){} });
+  shizukuText=text("Shizuku: checking…",15,false); root.addView(shizukuText);
+  Button grant=new Button(this); grant.setText("Connect / grant Shizuku"); grant.setOnClickListener(v->{if(!Shizuku.pingBinder())Toast.makeText(this,"Open Shizuku and start its service first.",Toast.LENGTH_LONG).show();else if(Shizuku.checkSelfPermission()!=android.content.pm.PackageManager.PERMISSION_GRANTED)Shizuku.requestPermission(1001);else Toast.makeText(this,"Shizuku permission is already granted.",Toast.LENGTH_SHORT).show();updateShizukuStatus();}); root.addView(grant);
+  Button scan=new Button(this); scan.setText("Scan for charging-control interfaces"); scan.setOnClickListener(v->scanControls()); root.addView(scan);
+  scanText=text("Diagnostic: not scanned yet. Scan is read-only and does not change charging.",14,false); root.addView(scanText);
+  TextView note=text("Important: this app does not yet stop charging automatically. Android has no public app API for cutting battery charging. The scan checks likely control files and whether the Shizuku shell can write to them; any candidate must be validated before cutoff/resume can be implemented safely.",14,false); LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.topMargin=18;root.addView(note,np);
+  setContentView(scroll);refreshBattery();updateShizukuStatus();
+ }
+ private TextView text(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(0xFF172033);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);t.setPadding(0,7,0,7);return t;}
+ private void refreshBattery(){Intent i=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));if(i==null||batteryText==null)return;int level=i.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);int scale=i.getIntExtra(BatteryManager.EXTRA_SCALE,100);int pct=scale>0?level*100/scale:level;int plugged=i.getIntExtra(BatteryManager.EXTRA_PLUGGED,0);batteryText.setText("Battery: "+pct+"%");statusText.setText(plugged==0?"Charger: disconnected":(pct>=limit?"Target reached — charging may still continue":"Charger: connected"));}
+ private void updateShizukuStatus(){if(shizukuText==null)return;boolean running=Shizuku.pingBinder();shizukuText.setText(!running?"Shizuku: not running":Shizuku.checkSelfPermission()==android.content.pm.PackageManager.PERMISSION_GRANTED?"Shizuku: connected; permission granted":"Shizuku: running; permission not granted");}
+ private void scanControls(){if(!Shizuku.pingBinder()){scanText.setText("Shizuku is not running. Start it, grant permission, then scan again.");return;}if(Shizuku.checkSelfPermission()!=android.content.pm.PackageManager.PERMISSION_GRANTED){Shizuku.requestPermission(1001);scanText.setText("Grant Shizuku permission, then tap scan again.");return;}scanText.setText("Scanning read-only power-supply paths…");new Thread(()->{StringBuilder out=new StringBuilder();try{String cmd="for f in /sys/class/power_supply/*/*; do [ -f \"$f\" ] || continue; n=$(basename \"$f\"); case \"$n\" in *charg*enabl*|*charging*enable*|*stop_charge*|*input_suspend*|*charge_disable*|*charging_enabled*) printf \"%s | writable=\" \"$f\"; [ -w \"$f\" ] && echo yes || echo no; printf \"value=\"; cat \"$f\" 2>/dev/null | head -c 80; echo;; esac; done";Process p=Shizuku.newProcess(new String[]{"sh","-c",cmd},null,null);BufferedReader reader=new BufferedReader(new InputStreamReader(p.getInputStream()));String line;while((line=reader.readLine())!=null&&out.length()<8000)out.append(line).append("\n");p.waitFor();if(out.length()==0)out.append("No likely charging-control files found in standard power_supply paths. This does not prove none exist.");}catch(Exception e){out.append("Scan failed: ").append(e.getClass().getSimpleName()).append(": ").append(e.getMessage());}String result=out.toString();runOnUiThread(()->scanText.setText(result));}).start();}
+ @Override protected void onResume(){super.onResume();handler.removeCallbacks(refresher);handler.post(refresher);}
+ @Override protected void onPause(){handler.removeCallbacks(refresher);super.onPause();}
+ @Override protected void onDestroy(){handler.removeCallbacks(refresher);Shizuku.removeRequestPermissionResultListener(permissionListener);super.onDestroy();}
 }
