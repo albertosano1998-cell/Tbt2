@@ -238,6 +238,14 @@ public class MainActivity extends Activity {
             "echo; echo 'Vendor service diagnostic output (read-only; no binder transactions sent):'; for s in tran_pwhub tran_aipl power android.hardware.power.IPower/default; do echo \"--- dumpsys $s ---\"; dumpsys \"$s\" 2>&1 | head -100; done; " +
             "echo; echo 'Installed Transsion/MediaTek system packages:'; pm list packages -s 2>/dev/null | grep -iE 'transsion|infinix|mediatek|powerhub|aipower|charger|battery' | head -100; " +
             "echo; echo 'Relevant read-only build properties:'; for k in ro.product.model ro.product.device ro.board.platform ro.hardware ro.build.version.release ro.build.version.sdk; do printf '%s=' \"$k\"; getprop \"$k\"; done; " +
+            "echo; echo 'Battery Lab / Power Center package details (read-only):'; " +
+            "for p in com.transsion.batterylab com.transsion.batterylab.icon com.transsion.powercenter com.transsion.phonemaster com.transsion.scanningrecharger; do " +
+            "echo \"--- package $p ---\"; dumpsys package \"$p\" 2>/dev/null | grep -iE 'Package \\[|versionName=|versionCode=|userId=|requested permissions:|install permissions:|runtime permissions:|android.permission|transsion.permission|exported=|Activity Resolver Table|Service Resolver Table|charge|battery|power|protect|limit|health' | head -100; " +
+            "echo 'APK path:'; pm path \"$p\" 2>/dev/null; done; " +
+            "echo; echo 'Possible built-in charging/battery settings keys (read-only):'; " +
+            "for ns in system secure global; do echo \"--- settings $ns ---\"; settings list \"$ns\" 2>/dev/null | grep -iE 'charge|battery|protect|limit|health|power'; done; " +
+            "echo; echo 'Relevant battery-related activities (read-only):'; " +
+            "cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER 2>/dev/null | grep -iE 'transsion|battery|powercenter|phonemaster|infinix' | head -80; " +
             "echo; echo 'Additional likely controls under power-supply roots:'; " +
             "for base in /sys/class/power_supply /sys/devices/platform/mt_charger /sys/devices/platform/mtk_charger /sys/devices/platform/mtk-charger; do " +
             "if [ -d \"$base\" ]; then find \"$base\" -maxdepth 7 -type f \\( -iname '*threshold*' -o -iname '*charging*enable*' -o -iname '*charge*enable*' -o -iname '*charge*limit*' -o -iname '*input_suspend*' \\) 2>/dev/null | head -100; fi; done; " +
