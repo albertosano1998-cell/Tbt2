@@ -231,7 +231,7 @@ public class MainActivity extends Activity {
             "for p in /proc/mtk_battery_cmd/current_cmd /proc/mtk_battery_cmd/en_power_path; do " +
             "if [ -e \"$p\" ]; then echo \"VISIBLE: $p\"; ls -ld \"$p\" 2>&1; if [ -r \"$p\" ]; then echo '  readable: YES'; else echo '  readable: NO'; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES (not tested by writing)'; else echo '  shell_writable: NO'; fi; else echo \"NOT VISIBLE: $p (may be absent or blocked by directory permissions)\"; fi; done; " +
             "echo; echo 'Additional Transsion/MediaTek battery nodes (read-only; meanings differ):'; " +
-            "for p in /proc/mtk_battery_cmd/en_safety_timer /proc/MTK_Battery_cmd/en_safety_timer /sys/devices/platform/tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/odm/odm:tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/tran_battery/OTG_CTL /sys/devices/platform/charger/tran_aichg_disable_charger; do " +
+            "for p in /proc/mtk_battery_cmd/en_safety_timer /proc/MTK_Battery_cmd/en_safety_timer /sys/devices/platform/tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/odm/odm:tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/tran_battery/tran_set_current /sys/devices/platform/odm/odm:tran_battery/tran_set_current /sys/devices/platform/tran_battery/OTG_CTL /sys/devices/platform/charger/tran_aichg_disable_charger; do " +
             "if [ -e \"$p\" ]; then echo \"FOUND: $p\"; ls -ld \"$p\" 2>&1; if [ -r \"$p\" ]; then printf '  read-only value: '; head -c 160 \"$p\" 2>&1; echo; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES (not tested by writing)'; else echo '  shell_writable: NO'; fi; fi; done; " +
             "echo; echo 'Android power/battery/vendor services:'; service list 2>/dev/null | grep -iE 'battery|power|charger|health|tran|transsion|aipl|pwhub' | head -120; " +
             "echo; echo 'Dumpsys service names (read-only):'; dumpsys -l 2>/dev/null | grep -iE 'battery|power|charger|tran|transsion|aipl|pwhub' | head -100; " +
@@ -242,6 +242,10 @@ public class MainActivity extends Activity {
             "for p in com.transsion.batterylab com.transsion.batterylab.icon com.transsion.powercenter com.transsion.phonemaster com.transsion.scanningrecharger; do " +
             "echo \"--- package $p ---\"; dumpsys package \"$p\" 2>/dev/null | grep -iE 'Package \\[|versionName=|versionCode=|userId=|requested permissions:|install permissions:|runtime permissions:|android.permission|transsion.permission|exported=|Activity Resolver Table|Service Resolver Table|charge|battery|power|protect|limit|health' | head -100; " +
             "echo 'APK path:'; pm path \"$p\" 2>/dev/null; done; " +
+            "echo; echo 'Exact Transsion node discovery (read-only):'; " +
+            "for base in /sys/devices/platform /sys/devices/platform/odm /sys/devices/platform/odm/odm:tran_battery /sys/devices/platform/tran_battery; do " +
+            "if [ -d \"$base\" ]; then find \"$base\" -maxdepth 5 -type f \\( -name 'CHG_CAPACITY_TEST' -o -name 'tran_set_current' -o -name 'tran_aichg_disable_charger' \\) 2>/dev/null | head -100; fi; done; " +
+            "echo; echo 'SELinux mode (read-only):'; getenforce 2>/dev/null; " +
             "echo; echo 'Possible built-in charging/battery settings keys (read-only):'; " +
             "for ns in system secure global; do echo \"--- settings $ns ---\"; settings list \"$ns\" 2>/dev/null | grep -iE 'charge|battery|protect|limit|health|power'; done; " +
             "echo; echo 'Relevant battery-related activities (read-only):'; " +
