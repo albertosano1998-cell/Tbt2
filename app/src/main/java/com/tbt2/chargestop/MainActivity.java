@@ -227,6 +227,9 @@ public class MainActivity extends Activity {
             "if [ -e \"$p\" ]; then ls -ld \"$p\" 2>/dev/null; if [ -f \"$p\" ] && [ -r \"$p\" ]; then printf '  first_line: '; head -c 160 \"$p\" 2>/dev/null; echo; fi; fi; done; " +
             "echo; echo 'MediaTek battery command interface (read-only):'; p=/proc/mtk_battery_cmd; " +
             "if [ -e \"$p\" ]; then ls -la \"$p\" 2>&1 | head -80; if [ -d \"$p\" ]; then for q in \"$p\"/* \"$p\"/.[!.]*; do [ -e \"$q\" ] || continue; ls -ld \"$q\" 2>/dev/null; if [ -f \"$q\" ] && [ -r \"$q\" ]; then printf '  read-only preview %s: ' \"$q\"; head -c 160 \"$q\" 2>&1; echo; fi; done; elif [ -f \"$p\" ] && [ -r \"$p\" ]; then head -c 1000 \"$p\" 2>&1; echo; fi; fi; " +
+            "echo; echo 'Direct MediaTek command-node checks (read-only; no writes):'; " +
+            "for p in /proc/mtk_battery_cmd/current_cmd /proc/mtk_battery_cmd/en_power_path; do " +
+            "if [ -e \"$p\" ]; then echo \"VISIBLE: $p\"; ls -ld \"$p\" 2>&1; if [ -r \"$p\" ]; then echo '  readable: YES'; else echo '  readable: NO'; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES (not tested by writing)'; else echo '  shell_writable: NO'; fi; else echo \"NOT VISIBLE: $p (may be absent or blocked by directory permissions)\"; fi; done; " +
             "echo; echo 'Android power/battery services:'; service list 2>/dev/null | grep -iE 'battery|power|charger|health' | head -80; " +
             "echo; echo 'Relevant read-only build properties:'; for k in ro.product.model ro.product.device ro.board.platform ro.hardware ro.build.version.release ro.build.version.sdk; do printf '%s=' \"$k\"; getprop \"$k\"; done; " +
             "echo; echo 'Additional likely controls under power-supply roots:'; " +
