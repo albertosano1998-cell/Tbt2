@@ -233,7 +233,10 @@ public class MainActivity extends Activity {
             "echo; echo 'Additional Transsion/MediaTek battery nodes (read-only; meanings differ):'; " +
             "for p in /proc/mtk_battery_cmd/en_safety_timer /proc/MTK_Battery_cmd/en_safety_timer /sys/devices/platform/tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/odm/odm:tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/tran_battery/OTG_CTL /sys/devices/platform/charger/tran_aichg_disable_charger; do " +
             "if [ -e \"$p\" ]; then echo \"FOUND: $p\"; ls -ld \"$p\" 2>&1; if [ -r \"$p\" ]; then printf '  read-only value: '; head -c 160 \"$p\" 2>&1; echo; fi; if [ -w \"$p\" ]; then echo '  shell_writable: YES (not tested by writing)'; else echo '  shell_writable: NO'; fi; fi; done; " +
-            "echo; echo 'Android power/battery services:'; service list 2>/dev/null | grep -iE 'battery|power|charger|health' | head -80; " +
+            "echo; echo 'Android power/battery/vendor services:'; service list 2>/dev/null | grep -iE 'battery|power|charger|health|tran|transsion|aipl|pwhub' | head -120; " +
+            "echo; echo 'Dumpsys service names (read-only):'; dumpsys -l 2>/dev/null | grep -iE 'battery|power|charger|tran|transsion|aipl|pwhub' | head -100; " +
+            "echo; echo 'Vendor service diagnostic output (read-only; no binder transactions sent):'; for s in tran_pwhub tran_aipl power android.hardware.power.IPower/default; do echo \"--- dumpsys $s ---\"; dumpsys \"$s\" 2>&1 | head -100; done; " +
+            "echo; echo 'Installed Transsion/MediaTek system packages:'; pm list packages -s 2>/dev/null | grep -iE 'transsion|infinix|mediatek|powerhub|aipower|charger|battery' | head -100; " +
             "echo; echo 'Relevant read-only build properties:'; for k in ro.product.model ro.product.device ro.board.platform ro.hardware ro.build.version.release ro.build.version.sdk; do printf '%s=' \"$k\"; getprop \"$k\"; done; " +
             "echo; echo 'Additional likely controls under power-supply roots:'; " +
             "for base in /sys/class/power_supply /sys/devices/platform/mt_charger /sys/devices/platform/mtk_charger /sys/devices/platform/mtk-charger; do " +
