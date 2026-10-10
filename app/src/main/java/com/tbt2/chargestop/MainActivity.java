@@ -259,7 +259,7 @@ public class MainActivity extends Activity {
             BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
             StringBuilder output = new StringBuilder();
             String line;
-            while ((line = reader.readLine()) != null && output.length() < 14000) {
+            while ((line = reader.readLine()) != null && output.length() < 28000) {
                 output.append(line).append('\n');
             }
             try { process.getClass().getMethod("waitFor").invoke(process); } catch (Throwable ignored) {}
