@@ -86,6 +86,8 @@ public class ScreenRecordService extends Service {
    }
   }catch(Exception e){android.util.Log.e("GameRecorder","Could not finalize recording",e);Toast.makeText(this,"Recording could not be finalized: "+e.getMessage(),Toast.LENGTH_LONG).show();}
   if(advancedMode&&file!=null)file.delete();if(audioFile!=null)audioFile.delete();
+  if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&android.provider.Settings.canDrawOverlays(this))
+   startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
   recording=false;stopForeground(true);stopSelf();
   if(had)Toast.makeText(this,"Recording saved in Movies / Game Recorder",Toast.LENGTH_LONG).show();
   file=null;audioFile=null;uri=null;advancedMode=false;
