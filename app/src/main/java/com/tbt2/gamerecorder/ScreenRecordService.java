@@ -65,7 +65,7 @@ public class ScreenRecordService extends Service {
   Intent p=new Intent(this,ScreenRecordService.class);p.setAction(paused?RESUME:PAUSE);PendingIntent pp=PendingIntent.getService(this,11,p,PendingIntent.FLAG_UPDATE_CURRENT|(Build.VERSION.SDK_INT>=23?PendingIntent.FLAG_IMMUTABLE:0));\n  return b.setSmallIcon(android.R.drawable.presence_video_online).setContentTitle("Game Recorder").setContentText(text).setContentIntent(op).setOngoing(recording).addAction(new Notification.Action.Builder(null,paused?"Resume":"Pause",pp).build()).addAction(new Notification.Action.Builder(null,"Stop",sp).build()).build();
  }
  private void update(String t){((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(NOTE_ID,notification(t));}
- private void pauseRecording(){if(!recording||paused||rec==null)return;try{rec.pause();if(advancedAudio!=null)advancedAudio.pause();paused=true;update("Recording paused");}catch(Exception e){Toast.makeText(this,"Could not pause: "+e.getMessage(),Toast.LENGTH_LONG).show();}}\n private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}\n private void finishRecording(){
+ private void pauseRecording(){if(!recording||paused||rec==null)return;try{rec.pause();if(advancedAudio!=null)advancedAudio.pause();paused=true;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",true).apply();update("Recording paused");}catch(Exception e){Toast.makeText(this,"Could not pause: "+e.getMessage(),Toast.LENGTH_LONG).show();}}\n private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}\n private void finishRecording(){
   boolean had=rec!=null;
   if(vd!=null){vd.release();vd=null;}
   if(rec!=null){try{rec.stop();}catch(RuntimeException ignored){}try{rec.reset();}catch(Exception ignored){}try{rec.release();}catch(Exception ignored){}rec=null;}
@@ -88,7 +88,7 @@ public class ScreenRecordService extends Service {
   if(advancedMode&&file!=null)file.delete();if(audioFile!=null)audioFile.delete();
   if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&android.provider.Settings.canDrawOverlays(this))
    startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
-  recording=false;paused=false;stopForeground(true);stopSelf();
+  recording=false;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();stopForeground(true);stopSelf();
   if(had)Toast.makeText(this,"Recording saved in Movies / Game Recorder",Toast.LENGTH_LONG).show();
   file=null;audioFile=null;uri=null;advancedMode=false;
  }
