@@ -20,7 +20,7 @@ public class OverlayControlService extends Service {
     private WindowManager.LayoutParams params;
     @Override public void onCreate(){super.onCreate();wm=(WindowManager)getSystemService(WINDOW_SERVICE);}
     @Override public int onStartCommand(Intent intent,int flags,int startId){
-        if(intent!=null&&HIDE.equals(intent.getAction())) hide(); else show();
+        if(intent!=null&&HIDE.equals(intent.getAction())) { hide(); stopSelf(); } else show();
         return START_NOT_STICKY;
     }
     private void show(){
@@ -31,7 +31,7 @@ public class OverlayControlService extends Service {
         int type=Build.VERSION.SDK_INT>=26?WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY:WindowManager.LayoutParams.TYPE_PHONE;
         params=new WindowManager.LayoutParams(size,size,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);
         params.gravity=Gravity.TOP|Gravity.END;params.x=(int)(12*d);params.y=(int)(180*d);
-        bubble.setOnClickListener(v->{hide();Intent i=new Intent(this,MainActivity.class);i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});
+        bubble.setOnClickListener(v->{hide();stopSelf();Intent i=new Intent(this,MainActivity.class);i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});
         try{wm.addView(bubble,params);}catch(Exception e){bubble=null;params=null;}
     }
     private void hide(){if(bubble!=null){try{wm.removeView(bubble);}catch(Exception ignored){}bubble=null;params=null;}}
