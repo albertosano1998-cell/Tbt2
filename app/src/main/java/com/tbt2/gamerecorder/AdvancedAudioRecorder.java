@@ -102,7 +102,7 @@ public final class AdvancedAudioRecorder {
                     int micGot;
                     if (microphone.getChannelCount() == 1) {
                         short[] mono = new short[SAMPLES_PER_FRAME];
-                        micGot = microphone.read(mono, 0, Math.min(SAMPLES_PER_FRAME, samples / 2), AudioRecord.READ_BLOCKING);
+                        micGot = microphone.read(mono, 0, Math.min(SAMPLES_PER_FRAME, samples / 2), AudioRecord.READ_NON_BLOCKING);
                         int frames = Math.max(0, micGot);
                         for (int i = 0; i < frames; i++) {
                             int m = mono[i];
@@ -111,7 +111,7 @@ public final class AdvancedAudioRecorder {
                         }
                         samples = frames * 2;
                     } else {
-                        micGot = microphone.read(mic, 0, samples, AudioRecord.READ_BLOCKING);
+                        micGot = microphone.read(mic, 0, samples, AudioRecord.READ_NON_BLOCKING);
                         int count = Math.min(samples, Math.max(0, micGot));
                         for (int i = 0; i < count; i++) mixed[i] = clamp(game[i] + mic[i]);
                         samples = count;
