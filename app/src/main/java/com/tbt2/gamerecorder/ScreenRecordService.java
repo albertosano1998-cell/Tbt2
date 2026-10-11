@@ -23,7 +23,9 @@ public class ScreenRecordService extends Service {
  public void onCreate(){super.onCreate();if(Build.VERSION.SDK_INT>=26){NotificationChannel c=new NotificationChannel(CHANNEL,"Game recording",NotificationManager.IMPORTANCE_LOW);getSystemService(NotificationManager.class).createNotificationChannel(c);}}
  public int onStartCommand(Intent i,int f,int id){
   if(i==null){stopSelf();return START_NOT_STICKY;}
-  if(STOP.equals(i.getAction())){finishRecording();return START_NOT_STICKY;}\n  if(PAUSE.equals(i.getAction())){pauseRecording();return START_STICKY;}\n  if(RESUME.equals(i.getAction())){resumeRecording();return START_STICKY;}
+  if(STOP.equals(i.getAction())){finishRecording();return START_NOT_STICKY;}
+  if(PAUSE.equals(i.getAction())){pauseRecording();return START_STICKY;}
+  if(RESUME.equals(i.getAction())){resumeRecording();return START_STICKY;}
   if(START.equals(i.getAction())){audioMode=i.getIntExtra(AUDIO,1);foreground("Preparing recorder",audioMode!=0);try{begin(i);}catch(Exception e){Toast.makeText(this,"Could not start: "+e.getMessage(),Toast.LENGTH_LONG).show();finishRecording();}}
   return START_NOT_STICKY;
  }
@@ -34,7 +36,8 @@ public class ScreenRecordService extends Service {
   int sw=dm.widthPixels&~1,sh=dm.heightPixels&~1;int q=i.getIntExtra(QUALITY,720),w=sw,h=sh;
   if(q==720||q==360){int target=q==360?360:720;float s=Math.min(1f,target/(float)Math.max(sw,sh));w=Math.max(2,((int)(sw*s))&~1);h=Math.max(2,((int)(sh*s))&~1);}
   int bitrate=q==480?2500000:(q==720?5000000:12000000);
-  File storage=getExternalFilesDir(Environment.DIRECTORY_MOVIES); if(storage==null)storage=getFilesDir(); long free=storage.getUsableSpace(); if(free<300L*1024*1024)throw new IOException("Less than 300 MB storage remains. Free space before recording."); maxBytes=Math.max(100L*1024*1024,free-200L*1024*1024);\n  advancedMode=(audioMode==2||audioMode==3);
+  File storage=getExternalFilesDir(Environment.DIRECTORY_MOVIES); if(storage==null)storage=getFilesDir(); long free=storage.getUsableSpace(); if(free<300L*1024*1024)throw new IOException("Less than 300 MB storage remains. Free space before recording."); maxBytes=Math.max(100L*1024*1024,free-200L*1024*1024);
+  advancedMode=(audioMode==2||audioMode==3);
   if(advancedMode){file=privateFile("video_tmp");audioFile=privateFile("audio_tmp");}
   else {
    if(Build.VERSION.SDK_INT>=29){ContentValues v=new ContentValues();v.put(MediaStore.Video.Media.DISPLAY_NAME,"GameRecorder_"+System.currentTimeMillis()+".mp4");v.put(MediaStore.Video.Media.MIME_TYPE,"video/mp4");v.put(MediaStore.Video.Media.RELATIVE_PATH,Environment.DIRECTORY_MOVIES+"/Game Recorder");v.put(MediaStore.Video.Media.IS_PENDING,1);uri=getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,v);}
@@ -44,7 +47,9 @@ public class ScreenRecordService extends Service {
   rec=new MediaRecorder();if(audioMode==1)rec.setAudioSource(MediaRecorder.AudioSource.MIC);
   rec.setVideoSource(MediaRecorder.VideoSource.SURFACE);rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
   if(pfd!=null)rec.setOutputFile(pfd.getFileDescriptor());else rec.setOutputFile(file.getAbsolutePath());
-  rec.setVideoEncoder(MediaRecorder.VideoEncoder.H264);rec.setVideoSize(w,h);rec.setVideoFrameRate(30);rec.setVideoEncodingBitRate(bitrate);\n  try{rec.setMaxFileSize(maxBytes);}catch(Exception ignored){}\n  rec.setOnInfoListener((mr,what,extra)->{if(what==MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED){android.util.Log.w("GameRecorder","Reserved storage limit reached; stopping recording");finishRecording();}});
+  rec.setVideoEncoder(MediaRecorder.VideoEncoder.H264);rec.setVideoSize(w,h);rec.setVideoFrameRate(30);rec.setVideoEncodingBitRate(bitrate);
+  try{rec.setMaxFileSize(maxBytes);}catch(Exception ignored){}
+  rec.setOnInfoListener((mr,what,extra)->{if(what==MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED){android.util.Log.w("GameRecorder","Reserved storage limit reached; stopping recording");finishRecording();}});
   if(audioMode==1){rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);rec.setAudioEncodingBitRate(128000);rec.setAudioSamplingRate(44100);}
   rec.prepare();projection=((MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE)).getMediaProjection(i.getIntExtra(CODE,0),data);
   if(projection==null)throw new IOException("Screen capture permission missing");
@@ -62,10 +67,13 @@ public class ScreenRecordService extends Service {
   PendingIntent sp=PendingIntent.getService(this,9,s,PendingIntent.FLAG_UPDATE_CURRENT|(Build.VERSION.SDK_INT>=23?PendingIntent.FLAG_IMMUTABLE:0));
   Intent open=new Intent(this,MainActivity.class);PendingIntent op=PendingIntent.getActivity(this,10,open,PendingIntent.FLAG_UPDATE_CURRENT|(Build.VERSION.SDK_INT>=23?PendingIntent.FLAG_IMMUTABLE:0));
   Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);
-  Intent p=new Intent(this,ScreenRecordService.class);p.setAction(paused?RESUME:PAUSE);PendingIntent pp=PendingIntent.getService(this,11,p,PendingIntent.FLAG_UPDATE_CURRENT|(Build.VERSION.SDK_INT>=23?PendingIntent.FLAG_IMMUTABLE:0));\n  return b.setSmallIcon(android.R.drawable.presence_video_online).setContentTitle("Game Recorder").setContentText(text).setContentIntent(op).setOngoing(recording).addAction(new Notification.Action.Builder(null,paused?"Resume":"Pause",pp).build()).addAction(new Notification.Action.Builder(null,"Stop",sp).build()).build();
+  Intent p=new Intent(this,ScreenRecordService.class);p.setAction(paused?RESUME:PAUSE);PendingIntent pp=PendingIntent.getService(this,11,p,PendingIntent.FLAG_UPDATE_CURRENT|(Build.VERSION.SDK_INT>=23?PendingIntent.FLAG_IMMUTABLE:0));
+  return b.setSmallIcon(android.R.drawable.presence_video_online).setContentTitle("Game Recorder").setContentText(text).setContentIntent(op).setOngoing(recording).addAction(new Notification.Action.Builder(null,paused?"Resume":"Pause",pp).build()).addAction(new Notification.Action.Builder(null,"Stop",sp).build()).build();
  }
  private void update(String t){((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(NOTE_ID,notification(t));}
- private void pauseRecording(){if(!recording||paused||rec==null)return;try{rec.pause();if(advancedAudio!=null)advancedAudio.pause();paused=true;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",true).apply();update("Recording paused");}catch(Exception e){Toast.makeText(this,"Could not pause: "+e.getMessage(),Toast.LENGTH_LONG).show();}}\n private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}\n private void finishRecording(){
+ private void pauseRecording(){if(!recording||paused||rec==null)return;try{rec.pause();if(advancedAudio!=null)advancedAudio.pause();paused=true;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",true).apply();update("Recording paused");}catch(Exception e){Toast.makeText(this,"Could not pause: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
+ private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
+ private void finishRecording(){
   boolean had=rec!=null;
   if(vd!=null){vd.release();vd=null;}
   if(rec!=null){try{rec.stop();}catch(RuntimeException ignored){}try{rec.reset();}catch(Exception ignored){}try{rec.release();}catch(Exception ignored){}rec=null;}
