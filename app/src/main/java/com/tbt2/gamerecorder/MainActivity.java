@@ -23,7 +23,7 @@ public class MainActivity extends Activity {
   Button start=new Button(this);start.setText("Start screen recording");LinearLayout.LayoutParams blp=lp();blp.topMargin=dp(18);root.addView(start,blp);start.setOnClickListener(v->startCapture());
   Button overlay=new Button(this);overlay.setText("Enable floating recording controls");LinearLayout.LayoutParams olp=lp();olp.topMargin=dp(6);root.addView(overlay,olp);overlay.setOnClickListener(v->enableOverlay());
   status=new TextView(this);status.setText("Ready. Android will ask you to approve screen capture.");LinearLayout.LayoutParams slp=lp();slp.topMargin=dp(10);root.addView(status,slp);
-  TextView tip=new TextView(this);tip.setText("Stop recording from the persistent notification. The app screen is not kept over your game, so its controls won't appear in the saved video.");LinearLayout.LayoutParams tlp=lp();tlp.topMargin=dp(12);root.addView(tip,tlp);
+  TextView tip=new TextView(this);tip.setText("Use the floating button to pause/resume and long-press it to stop. The overlay is marked secure to ask Android to exclude it from screen capture; confirm this on your device.");LinearLayout.LayoutParams tlp=lp();tlp.topMargin=dp(12);root.addView(tip,tlp);
   ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
  }
  private TextView heading(String s){TextView t=new TextView(this);t.setText(s);t.setTextSize(18);t.setTextColor(0xFF172033);LinearLayout.LayoutParams p=lp();p.topMargin=dp(18);t.setLayoutParams(p);return t;}
@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
   if(!Settings.canDrawOverlays(this)){startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())),OVERLAY);return;}
   getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("overlay_enabled",true).apply();
   startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
-  Toast.makeText(this,"Floating REC button enabled. It hides during recording.",Toast.LENGTH_LONG).show();
+  Toast.makeText(this,"Floating recording controls enabled. Tap to pause/resume; long-press to stop.",Toast.LENGTH_LONG).show();
  }
  private void showOverlayIfEnabled(){
   if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&Settings.canDrawOverlays(this))
