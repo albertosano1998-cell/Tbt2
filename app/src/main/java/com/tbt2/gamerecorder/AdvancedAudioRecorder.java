@@ -29,7 +29,8 @@ public final class AdvancedAudioRecorder {
     private final MediaProjection projection;
     private final boolean includeMic;
     private final File output;
-    private final AtomicBoolean running = new AtomicBoolean(false);\n    private volatile boolean paused;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private volatile boolean paused;
     private AudioRecord playback;
     private AudioRecord microphone;
     private MediaCodec encoder;
