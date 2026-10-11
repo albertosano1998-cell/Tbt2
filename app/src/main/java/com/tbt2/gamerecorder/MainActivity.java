@@ -4,10 +4,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.net.Uri;
 import android.view.Gravity;
 import android.widget.*;
 public class MainActivity extends Activity {
- private static final int CAPTURE=4812; private RadioGroup audio,quality; private TextView status;
+ private static final int CAPTURE=4812, OVERLAY=4813; private RadioGroup audio,quality; private TextView status;
  public void onCreate(Bundle b){super.onCreate(b);ui();}
  private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
  private LinearLayout.LayoutParams lp(){return new LinearLayout.LayoutParams(-1,-2);}
@@ -19,6 +21,7 @@ public class MainActivity extends Activity {
   TextView note=new TextView(this);note.setText("Internal audio needs Android 10+ and may be blocked by some games/apps. Game + microphone mixes both sources.");note.setTextColor(0xFF8A4B08);note.setTextSize(12);root.addView(note,lp());
   root.addView(heading("Video quality"));quality=new RadioGroup(this);quality.setOrientation(1);radio(quality,"Balanced — 720p / 6 Mbps",720,true);radio(quality,"High — full screen / 12 Mbps",1080,false);radio(quality,"Battery saver — 720p / 3 Mbps",360,false);root.addView(quality);
   Button start=new Button(this);start.setText("Start screen recording");LinearLayout.LayoutParams blp=lp();blp.topMargin=dp(18);root.addView(start,blp);start.setOnClickListener(v->startCapture());
+  Button overlay=new Button(this);overlay.setText("Enable floating REC button");LinearLayout.LayoutParams olp=lp();olp.topMargin=dp(6);root.addView(overlay,olp);overlay.setOnClickListener(v->enableOverlay());
   status=new TextView(this);status.setText("Ready. Android will ask you to approve screen capture.");LinearLayout.LayoutParams slp=lp();slp.topMargin=dp(10);root.addView(status,slp);
   TextView tip=new TextView(this);tip.setText("Stop recording from the persistent notification. The app screen is not kept over your game, so its controls won't appear in the saved video.");LinearLayout.LayoutParams tlp=lp();tlp.topMargin=dp(12);root.addView(tip,tlp);
   ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
@@ -31,8 +34,10 @@ public class MainActivity extends Activity {
   int q=(Integer)((RadioButton)findViewById(quality.getCheckedRadioButtonId())).getTag();getPreferences(0).edit().putInt("audio",a).putInt("quality",q).apply();
   MediaProjectionManager m=(MediaProjectionManager)getSystemService(Context.MEDIA_PROJECTION_SERVICE);startActivityForResult(m.createScreenCaptureIntent(),CAPTURE);
  }
- protected void onActivityResult(int r,int code,Intent data){super.onActivityResult(r,code,data);if(r!=CAPTURE)return;if(code!=RESULT_OK||data==null){status.setText("Recording cancelled.");return;}
+ protected void onActivityResult(int r,int code,Intent data){super.onActivityResult(r,code,data);
+  if(r==OVERLAY){if(Settings.canDrawOverlays(this)){getPreferences(0).edit().putBoolean("overlay_enabled",true).apply();showOverlayIfEnabled();}return;}
+  if(r!=CAPTURE)return;if(code!=RESULT_OK||data==null){status.setText("Recording cancelled.");showOverlayIfEnabled();return;}
   Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.START);i.putExtra(ScreenRecordService.CODE,code);i.putExtra(ScreenRecordService.DATA,data);i.putExtra(ScreenRecordService.AUDIO,getPreferences(0).getInt("audio",1));i.putExtra(ScreenRecordService.QUALITY,getPreferences(0).getInt("quality",720));startForegroundService(i);status.setText("Recording started. Stop from the notification.");
  }
- public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==72&&g.length>0&&g[0]==0)startCapture();else if(r==72)Toast.makeText(this,"Audio permission denied. Choose Mute to record silently.",Toast.LENGTH_LONG).show();}
+ public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==72&&g.length>0&&g[0]==0)startCapture();else if(r==72){Toast.makeText(this,"Audio permission denied. Choose Mute to record silently.",Toast.LENGTH_LONG).show();showOverlayIfEnabled();}}
 }
