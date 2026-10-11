@@ -31,7 +31,9 @@ public class OverlayControlService extends Service {
         int type=Build.VERSION.SDK_INT>=26?WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY:WindowManager.LayoutParams.TYPE_PHONE;
         params=new WindowManager.LayoutParams(size,size,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL|WindowManager.LayoutParams.FLAG_SECURE,PixelFormat.TRANSLUCENT);
         params.gravity=Gravity.TOP|Gravity.END;params.x=(int)(12*d);params.y=(int)(180*d);
-        bubble.setText("Ⅱ");\n        bubble.setOnClickListener(v->{boolean paused=getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("recording_paused",false);Intent i=new Intent(this,ScreenRecordService.class);i.setAction(paused?ScreenRecordService.RESUME:ScreenRecordService.PAUSE);startService(i);bubble.setText(paused?"Ⅱ":"▶");});\n        bubble.setOnLongClickListener(v->{Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.STOP);startService(i);return true;});
+        bubble.setText("Ⅱ");
+        bubble.setOnClickListener(v->{boolean paused=getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("recording_paused",false);Intent i=new Intent(this,ScreenRecordService.class);i.setAction(paused?ScreenRecordService.RESUME:ScreenRecordService.PAUSE);startService(i);bubble.setText(paused?"Ⅱ":"▶");});
+        bubble.setOnLongClickListener(v->{Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.STOP);startService(i);return true;});
         try{wm.addView(bubble,params);}catch(Exception e){bubble=null;params=null;}
     }
     private void hide(){if(bubble!=null){try{wm.removeView(bubble);}catch(Exception ignored){}bubble=null;params=null;}}
