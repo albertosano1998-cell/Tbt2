@@ -27,8 +27,7 @@ public class MainActivity extends Activity {
  private void radio(RadioGroup g,String s,int tag,boolean checked){RadioButton b=new RadioButton(this);b.setText(s);b.setTag(tag);g.addView(b);if(checked)b.setChecked(true);}
  private void startCapture(){
   int a=(Integer)((RadioButton)findViewById(audio.getCheckedRadioButtonId())).getTag();
-  if(a==2||a==3){Toast.makeText(this,"Internal game audio is not available in this build. Choose Microphone or Mute.",Toast.LENGTH_LONG).show();return;}
-  if(a==1&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},72);return;}
+  if(a!=0&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},72);return;}
   int q=(Integer)((RadioButton)findViewById(quality.getCheckedRadioButtonId())).getTag();getPreferences(0).edit().putInt("audio",a).putInt("quality",q).apply();
   MediaProjectionManager m=(MediaProjectionManager)getSystemService(Context.MEDIA_PROJECTION_SERVICE);startActivityForResult(m.createScreenCaptureIntent(),CAPTURE);
  }
