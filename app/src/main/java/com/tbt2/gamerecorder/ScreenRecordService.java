@@ -21,7 +21,7 @@ public class ScreenRecordService extends Service {
  private void begin(Intent i)throws Exception{
   Intent data=i.getParcelableExtra(DATA);if(data==null)throw new IOException("Missing screen permission");
   DisplayMetrics dm=new DisplayMetrics();((WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(dm);int sw=dm.widthPixels&~1,sh=dm.heightPixels&~1;
-  int q=i.getIntExtra(QUALITY,720),w=sw,h=sh;if(q==720||q==360){float s=Math.min(1f,q/(float)Math.max(sw,sh));w=Math.max(2,((int)(sw*s))&~1);h=Math.max(2,((int)(sh*s))&~1);}int bitrate=q==360?3000000:(q==1080?12000000:6000000);
+  int q=i.getIntExtra(QUALITY,720),w=sw,h=sh;if(q==720||q==360){int target=q==360?360:720;float s=Math.min(1f,target/(float)Math.max(sw,sh));w=Math.max(2,((int)(sw*s))&~1);h=Math.max(2,((int)(sh*s))&~1);}int bitrate=q==360?3000000:(q==1080?12000000:6000000);
   int a=i.getIntExtra(AUDIO,1);if(Build.VERSION.SDK_INT>=29){ContentValues v=new ContentValues();v.put(MediaStore.Video.Media.DISPLAY_NAME,"GameRecorder_"+System.currentTimeMillis()+".mp4");v.put(MediaStore.Video.Media.MIME_TYPE,"video/mp4");v.put(MediaStore.Video.Media.RELATIVE_PATH,Environment.DIRECTORY_MOVIES+"/Game Recorder");v.put(MediaStore.Video.Media.IS_PENDING,1);uri=getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,v);}
   rec=new MediaRecorder();if(a==1)rec.setAudioSource(MediaRecorder.AudioSource.MIC);rec.setVideoSource(MediaRecorder.VideoSource.SURFACE);rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
   if(uri!=null){pfd=getContentResolver().openFileDescriptor(uri,"w");if(pfd==null)throw new IOException("Cannot open output video");rec.setOutputFile(pfd.getFileDescriptor());}
