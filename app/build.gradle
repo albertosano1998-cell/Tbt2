@@ -1,18 +1,15 @@
 plugins { id 'com.android.application' }
 
 android {
-    namespace 'com.tbt2.chargestop'
+    namespace 'com.tbt2.gamerecorder'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.tbt2.chargestop'
+        applicationId 'com.tbt2.gamerecorder'
         minSdk 26
-        targetSdk 28
-        versionCode 4
-        versionName '0.4.0'
+        targetSdk 30
+        versionCode 1
+        versionName '1.0.0'
     }
 }
 
-dependencies {
-    implementation 'dev.rikka.shizuku:api:13.1.5'
-    implementation 'dev.rikka.shizuku:provider:13.1.5'
-}
+dependencies { }
