@@ -183,12 +183,13 @@ public final class AdvancedAudioRecorder {
 
     public void stop() {
         running.set(false);
+        // Stop AudioRecords first so blocking reads wake before the worker is joined.
+        releaseRecord(playback); playback = null;
+        releaseRecord(microphone); microphone = null;
         if (worker != null) {
             try { worker.join(1500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
             worker = null;
         }
-        releaseRecord(playback); playback = null;
-        releaseRecord(microphone); microphone = null;
         if (encoder != null) { try { encoder.stop(); } catch (Exception ignored) {} try { encoder.release(); } catch (Exception ignored) {} encoder = null; }
         if (muxer != null) { try { if (muxerStarted) muxer.stop(); } catch (Exception ignored) {} try { muxer.release(); } catch (Exception ignored) {} muxer = null; }
     }
