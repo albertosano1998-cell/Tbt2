@@ -15,8 +15,8 @@ public class MainActivity extends Activity {
   LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(20),dp(20),dp(20),dp(20));root.setBackgroundColor(0xFFF4F6FA);
   TextView title=new TextView(this);title.setText("Game Recorder");title.setTextSize(28);title.setTextColor(0xFF172033);title.setGravity(Gravity.CENTER_VERTICAL);root.addView(title);
   TextView intro=new TextView(this);intro.setText("Record your gameplay to MP4. Uses Android screen capture and hardware video encoding where available.");intro.setTextSize(15);root.addView(intro,lp());
-  root.addView(heading("Audio"));audio=new RadioGroup(this);audio.setOrientation(1);radio(audio,"Microphone",1,true);radio(audio,"Mute (no audio)",0,false);radio(audio,"Game/internal audio (not available yet)",2,false);radio(audio,"Game audio + microphone (not available yet)",3,false);root.addView(audio);
-  TextView note=new TextView(this);note.setText("This first build supports microphone or mute. Internal game audio is not implemented yet.");note.setTextColor(0xFF8A4B08);note.setTextSize(12);root.addView(note,lp());
+  root.addView(heading("Audio"));audio=new RadioGroup(this);audio.setOrientation(1);radio(audio,"Microphone",1,true);radio(audio,"Mute (no audio)",0,false);radio(audio,"Game/internal audio",2,false);radio(audio,"Game audio + microphone",3,false);root.addView(audio);
+  TextView note=new TextView(this);note.setText("Internal audio needs Android 10+ and may be blocked by some games/apps. Game + microphone mixes both sources.");note.setTextColor(0xFF8A4B08);note.setTextSize(12);root.addView(note,lp());
   root.addView(heading("Video quality"));quality=new RadioGroup(this);quality.setOrientation(1);radio(quality,"Balanced — 720p / 6 Mbps",720,true);radio(quality,"High — full screen / 12 Mbps",1080,false);radio(quality,"Battery saver — 720p / 3 Mbps",360,false);root.addView(quality);
   Button start=new Button(this);start.setText("Start screen recording");LinearLayout.LayoutParams blp=lp();blp.topMargin=dp(18);root.addView(start,blp);start.setOnClickListener(v->startCapture());
   status=new TextView(this);status.setText("Ready. Android will ask you to approve screen capture.");LinearLayout.LayoutParams slp=lp();slp.topMargin=dp(10);root.addView(status,slp);
@@ -35,5 +35,5 @@ public class MainActivity extends Activity {
  protected void onActivityResult(int r,int code,Intent data){super.onActivityResult(r,code,data);if(r!=CAPTURE)return;if(code!=RESULT_OK||data==null){status.setText("Recording cancelled.");return;}
   Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.START);i.putExtra(ScreenRecordService.CODE,code);i.putExtra(ScreenRecordService.DATA,data);i.putExtra(ScreenRecordService.AUDIO,getPreferences(0).getInt("audio",1));i.putExtra(ScreenRecordService.QUALITY,getPreferences(0).getInt("quality",720));startForegroundService(i);status.setText("Recording started. Stop from the notification.");
  }
- public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==72&&g.length>0&&g[0]==0)startCapture();else if(r==72)Toast.makeText(this,"Microphone denied. Choose Mute to record silently.",Toast.LENGTH_LONG).show();}
+ public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==72&&g.length>0&&g[0]==0)startCapture();else if(r==72)Toast.makeText(this,"Audio permission denied. Choose Mute to record silently.",Toast.LENGTH_LONG).show();}
 }
