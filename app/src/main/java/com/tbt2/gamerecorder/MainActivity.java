@@ -28,16 +28,28 @@ public class MainActivity extends Activity {
  }
  private TextView heading(String s){TextView t=new TextView(this);t.setText(s);t.setTextSize(18);t.setTextColor(0xFF172033);LinearLayout.LayoutParams p=lp();p.topMargin=dp(18);t.setLayoutParams(p);return t;}
  private void radio(RadioGroup g,String s,int tag,boolean checked){RadioButton b=new RadioButton(this);b.setText(s);b.setTag(tag);g.addView(b);if(checked)b.setChecked(true);}
+ private void enableOverlay(){
+  if(!Settings.canDrawOverlays(this)){startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())),OVERLAY);return;}
+  getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("overlay_enabled",true).apply();
+  startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
+  Toast.makeText(this,"Floating REC button enabled. It hides during recording.",Toast.LENGTH_LONG).show();
+ }
+ private void showOverlayIfEnabled(){
+  if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&Settings.canDrawOverlays(this))
+   startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
+ }
+ private void hideOverlay(){startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.HIDE));}
  private void startCapture(){
+  hideOverlay();
   int a=(Integer)((RadioButton)findViewById(audio.getCheckedRadioButtonId())).getTag();
   if(a!=0&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},72);return;}
-  int q=(Integer)((RadioButton)findViewById(quality.getCheckedRadioButtonId())).getTag();getPreferences(0).edit().putInt("audio",a).putInt("quality",q).apply();
+  int q=(Integer)((RadioButton)findViewById(quality.getCheckedRadioButtonId())).getTag();getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putInt("audio",a).putInt("quality",q).apply();
   MediaProjectionManager m=(MediaProjectionManager)getSystemService(Context.MEDIA_PROJECTION_SERVICE);startActivityForResult(m.createScreenCaptureIntent(),CAPTURE);
  }
  protected void onActivityResult(int r,int code,Intent data){super.onActivityResult(r,code,data);
-  if(r==OVERLAY){if(Settings.canDrawOverlays(this)){getPreferences(0).edit().putBoolean("overlay_enabled",true).apply();showOverlayIfEnabled();}return;}
+  if(r==OVERLAY){if(Settings.canDrawOverlays(this)){getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("overlay_enabled",true).apply();showOverlayIfEnabled();}return;}
   if(r!=CAPTURE)return;if(code!=RESULT_OK||data==null){status.setText("Recording cancelled.");showOverlayIfEnabled();return;}
-  Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.START);i.putExtra(ScreenRecordService.CODE,code);i.putExtra(ScreenRecordService.DATA,data);i.putExtra(ScreenRecordService.AUDIO,getPreferences(0).getInt("audio",1));i.putExtra(ScreenRecordService.QUALITY,getPreferences(0).getInt("quality",720));startForegroundService(i);status.setText("Recording started. Stop from the notification.");
+  Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.START);i.putExtra(ScreenRecordService.CODE,code);i.putExtra(ScreenRecordService.DATA,data);i.putExtra(ScreenRecordService.AUDIO,getSharedPreferences("GameRecorder",MODE_PRIVATE).getInt("audio",1));i.putExtra(ScreenRecordService.QUALITY,getSharedPreferences("GameRecorder",MODE_PRIVATE).getInt("quality",720));startForegroundService(i);status.setText("Recording started. Stop from the notification.");
  }
  public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==72&&g.length>0&&g[0]==0)startCapture();else if(r==72){Toast.makeText(this,"Audio permission denied. Choose Mute to record silently.",Toast.LENGTH_LONG).show();showOverlayIfEnabled();}}
 }
