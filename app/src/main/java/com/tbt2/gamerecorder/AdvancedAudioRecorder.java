@@ -96,7 +96,9 @@ public final class AdvancedAudioRecorder {
         byte[] pcm = new byte[mixed.length * 2];
         try {
             while (running.get()) {
-                int got = playback.read(game, 0, game.length, AudioRecord.READ_BLOCKING);
+                if (paused) { Thread.sleep(20); continue; }
+                int got = playback.read(game, 0, game.length, AudioRecord.READ_NON_BLOCKING);
+                if (got == 0) { Thread.sleep(5); continue; }
                 if (got <= 0) continue;
                 int samples = Math.min(got, game.length);
                 if (microphone != null) {
@@ -184,6 +186,10 @@ public final class AdvancedAudioRecorder {
             }
         } catch (Exception e) { Log.e(TAG, "AAC drain failed", e); }
     }
+
+    public void pause() { paused = true; }
+
+    public void resume() { paused = false; }
 
     public void stop() {
         running.set(false);
