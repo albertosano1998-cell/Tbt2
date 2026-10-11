@@ -12,7 +12,7 @@ import android.view.Gravity;
 import android.view.WindowManager;
 import android.widget.TextView;
 
-/** Floating quick-launch control. It is hidden before capture, so it cannot be burned into the video. */
+/** Floating recording controls. FLAG_SECURE asks Android not to capture this overlay; verify on device. */
 public class OverlayControlService extends Service {
     public static final String SHOW="gr.overlay.show", HIDE="gr.overlay.hide";
     private WindowManager wm;
@@ -29,9 +29,9 @@ public class OverlayControlService extends Service {
         bubble=new TextView(this);bubble.setText("REC");bubble.setTextColor(Color.WHITE);bubble.setTextSize(13);bubble.setGravity(Gravity.CENTER);
         GradientDrawable bg=new GradientDrawable();bg.setColor(0xFFDA3344);bg.setShape(GradientDrawable.OVAL);bg.setStroke((int)(2*d),0xCCFFFFFF);bubble.setBackground(bg);bubble.setElevation(8*d);
         int type=Build.VERSION.SDK_INT>=26?WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY:WindowManager.LayoutParams.TYPE_PHONE;
-        params=new WindowManager.LayoutParams(size,size,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);
+        params=new WindowManager.LayoutParams(size,size,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL|WindowManager.LayoutParams.FLAG_SECURE,PixelFormat.TRANSLUCENT);
         params.gravity=Gravity.TOP|Gravity.END;params.x=(int)(12*d);params.y=(int)(180*d);
-        bubble.setOnClickListener(v->{hide();stopSelf();Intent i=new Intent(this,MainActivity.class);i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});
+        bubble.setText("Ⅱ");\n        bubble.setOnClickListener(v->{Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.PAUSE);startService(i);bubble.setText("Ⅱ");});\n        bubble.setOnLongClickListener(v->{Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.STOP);startService(i);return true;});
         try{wm.addView(bubble,params);}catch(Exception e){bubble=null;params=null;}
     }
     private void hide(){if(bubble!=null){try{wm.removeView(bubble);}catch(Exception ignored){}bubble=null;params=null;}}
