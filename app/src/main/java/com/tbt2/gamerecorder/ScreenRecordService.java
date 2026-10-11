@@ -54,7 +54,7 @@ public class ScreenRecordService extends Service {
  }
  private void foreground(String text,boolean needsAudio){
   Notification n=notification(text);
-  if(Build.VERSION.SDK_INT>=29){int types=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;if(needsAudio)types|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;startForeground(NOTE_ID,n,types);}
+  if(Build.VERSION.SDK_INT>=29){int types=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;if(Build.VERSION.SDK_INT>=30&&needsAudio)types|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;startForeground(NOTE_ID,n,types);}
   else startForeground(NOTE_ID,n);
  }
  private Notification notification(String text){
