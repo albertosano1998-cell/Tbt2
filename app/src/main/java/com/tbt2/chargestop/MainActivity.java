@@ -258,6 +258,15 @@ public class MainActivity extends Activity {
             "echo; echo 'Additional likely controls under power-supply roots:'; " +
             "for base in /sys/class/power_supply /sys/devices/platform/mt_charger /sys/devices/platform/mtk_charger /sys/devices/platform/mtk-charger; do " +
             "if [ -d \"$base\" ]; then find \"$base\" -maxdepth 7 -type f \\( -iname '*threshold*' -o -iname '*charging*enable*' -o -iname '*charge*enable*' -o -iname '*charge*limit*' -o -iname '*input_suspend*' \\) 2>/dev/null | head -100; fi; done; " +
+            "echo; echo 'Targeted CHG_CAPACITY_TEST access diagnosis (read-only):'; " +
+            "for d in /sys/devices/platform/tran_battery /sys/devices/platform/odm /sys/devices/platform/odm/odm:tran_battery; do echo \"--- directory $d ---\"; ls -ldZ \"$d\" 2>&1; done; " +
+            "for p in /sys/devices/platform/tran_battery/CHG_CAPACITY_TEST /sys/devices/platform/odm/odm:tran_battery/CHG_CAPACITY_TEST /proc/mtk_battery_cmd /proc/mtk_battery_cmd/current_cmd /proc/mtk_battery_cmd/en_power_path /proc/mtk_battery_cmd/en_safety_timer; do echo \"--- node $p ---\"; ls -lZ \"$p\" 2>&1; stat \"$p\" 2>&1; if [ -r \"$p\" ] && [ -f \"$p\" ]; then printf 'read-only contents: '; head -c 160 \"$p\" 2>&1; echo; else echo 'not readable as shell (not attempting access escalation)'; fi; done; " +
+            "echo; echo 'Runtime init configuration lines mentioning candidate nodes (read-only):'; " +
+            "for f in /system/etc/init/hw/init.mt6768.rc /vendor/etc/init/hw/init.mt6768.rc /system/vendor/etc/init/hw/init.mt6768.rc /vendor/etc/init/init.mt6768.rc; do if [ -r \"$f\" ]; then echo \"--- $f ---\"; grep -nE 'CHG_CAPACITY_TEST|mtk_battery_cmd/(en_safety_timer|current_cmd|en_power_path)|tran_battery/OTG_CTL' \"$f\" 2>&1 | head -40; fi; done; " +
+            "echo; echo 'Recent SELinux denials specifically mentioning charging nodes (filtered log read-only):'; " +
+            "logcat -b all -d -v brief 2>/dev/null | grep -iE 'avc: denied.*(CHG_CAPACITY_TEST|tran_battery|mtk_battery_cmd|en_power_path|current_cmd)' | tail -80; " +
+            "echo; echo 'Recent kernel messages mentioning candidate nodes (read-only; may be denied):'; " +
+            "dmesg 2>&1 | grep -iE 'CHG_CAPACITY_TEST|tran_battery|mtk_battery_cmd|en_power_path|current_cmd|avc: denied' | tail -60; " +
             "echo; echo 'No files were written.'";
         try {
             Method method = Shizuku.class.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
