@@ -1,7 +1,7 @@
-name: Android debug APK
+name: Game Recorder Android APK
 on:
   push:
-    branches: [main]
+    branches: [main, game-recorder]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,5 +21,5 @@ jobs:
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: ChargeStop85-debug
+          name: GameRecorder-debug
           path: app/build/outputs/apk/debug/app-debug.apk
