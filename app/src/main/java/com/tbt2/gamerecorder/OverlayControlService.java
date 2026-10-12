@@ -24,7 +24,8 @@ public class OverlayControlService extends Service {
         return START_NOT_STICKY;
     }
     private void show(){
-        if(bubble!=null||!Settings.canDrawOverlays(this))return;
+        if(!Settings.canDrawOverlays(this))return;
+        if(bubble!=null){refreshLabel();return;}
         float d=getResources().getDisplayMetrics().density;int size=(int)(54*d);
         bubble=new TextView(this);bubble.setText("REC");bubble.setTextColor(Color.WHITE);bubble.setTextSize(13);bubble.setGravity(Gravity.CENTER);
         GradientDrawable bg=new GradientDrawable();bg.setColor(0xFFDA3344);bg.setShape(GradientDrawable.OVAL);bg.setStroke((int)(2*d),0xCCFFFFFF);bubble.setBackground(bg);bubble.setElevation(8*d);
@@ -52,6 +53,7 @@ public class OverlayControlService extends Service {
         bubble.setOnLongClickListener(v->{Intent i=new Intent(this,ScreenRecordService.class);i.setAction(ScreenRecordService.STOP);startService(i);return true;});
         try{wm.addView(bubble,params);}catch(Exception e){bubble=null;params=null;}
     }
+    private void refreshLabel(){if(bubble!=null){boolean active=getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("recording_active",false);boolean paused=getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("recording_paused",false);bubble.setText(!active?"REC":(paused?"▶":"Ⅱ"));}}
     private void hide(){if(bubble!=null){try{wm.removeView(bubble);}catch(Exception ignored){}bubble=null;params=null;}}
     @Override public void onDestroy(){hide();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
