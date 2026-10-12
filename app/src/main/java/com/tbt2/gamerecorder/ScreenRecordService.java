@@ -34,7 +34,7 @@ public class ScreenRecordService extends Service {
   Intent data=i.getParcelableExtra(DATA);if(data==null)throw new IOException("Missing screen permission");
   DisplayMetrics dm=new DisplayMetrics();((WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(dm);
   int sw=dm.widthPixels&~1,sh=dm.heightPixels&~1;int q=i.getIntExtra(QUALITY,720),w=sw,h=sh;
-  if(q==720||q==360){int target=q==360?360:720;float s=Math.min(1f,target/(float)Math.max(sw,sh));w=Math.max(2,((int)(sw*s))&~1);h=Math.max(2,((int)(sh*s))&~1);}
+  if(q==720||q==480){int target=q;float s=Math.min(1f,target/(float)Math.max(sw,sh));w=Math.max(2,((int)(sw*s))&~1);h=Math.max(2,((int)(sh*s))&~1);}
   int bitrate=q==480?2500000:(q==720?5000000:12000000);
   File storage=getExternalFilesDir(Environment.DIRECTORY_MOVIES); if(storage==null)storage=getFilesDir(); long free=storage.getUsableSpace(); if(free<300L*1024*1024)throw new IOException("Less than 300 MB storage remains. Free space before recording."); maxBytes=Math.max(100L*1024*1024,free-200L*1024*1024);
   advancedMode=(audioMode==2||audioMode==3);
@@ -55,7 +55,7 @@ public class ScreenRecordService extends Service {
   if(projection==null)throw new IOException("Screen capture permission missing");
   if(advancedMode){advancedAudio=new AdvancedAudioRecorder(projection,audioMode==3,audioFile);advancedAudio.start();}
   rec.start();vd=projection.createVirtualDisplay("GameRecorder",w,h,dm.densityDpi,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,rec.getSurface(),null,null);
-  recording=true;paused=false;update("Recording • Pause or Stop from notification");
+  recording=true;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",true).putBoolean("recording_paused",false).apply();update("Recording • Pause or Stop from notification");
  }
  private void foreground(String text,boolean needsAudio){
   Notification n=notification(text);
@@ -96,7 +96,7 @@ public class ScreenRecordService extends Service {
   if(advancedMode&&file!=null)file.delete();if(audioFile!=null)audioFile.delete();
   if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&android.provider.Settings.canDrawOverlays(this))
    startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
-  recording=false;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();stopForeground(true);stopSelf();
+  recording=false;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",false).putBoolean("recording_paused",false).apply();stopForeground(true);stopSelf();
   if(had)Toast.makeText(this,"Recording saved in Movies / Game Recorder",Toast.LENGTH_LONG).show();
   file=null;audioFile=null;uri=null;advancedMode=false;
  }
