@@ -75,30 +75,50 @@ public class ScreenRecordService extends Service {
  private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false))startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
  private void finishRecording(){
   boolean had=rec!=null;
-  if(vd!=null){vd.release();vd=null;}
-  if(rec!=null){try{rec.stop();}catch(RuntimeException ignored){}try{rec.reset();}catch(Exception ignored){}try{rec.release();}catch(Exception ignored){}rec=null;}
+  boolean videoFinalized=false;
+  if(vd!=null){try{vd.release();}catch(Exception ignored){}vd=null;}
+  if(rec!=null){
+   try{rec.stop();videoFinalized=true;}catch(RuntimeException e){android.util.Log.e("GameRecorder","Recorder stopped before a valid video was finalized",e);}
+   try{rec.reset();}catch(Exception ignored){}try{rec.release();}catch(Exception ignored){}rec=null;
+  }
   if(pfd!=null){try{pfd.close();}catch(IOException ignored){}pfd=null;}
-  if(advancedAudio!=null){try{advancedAudio.stop();}catch(Exception ignored){}advancedAudio=null;}
+  if(advancedAudio!=null){try{advancedAudio.stop();}catch(Exception e){android.util.Log.e("GameRecorder","Audio recorder cleanup failed",e);}advancedAudio=null;}
   if(projection!=null){try{projection.stop();}catch(Exception ignored){}projection=null;}
+  boolean saved=false;
   try{
-   if(advancedMode&&file!=null&&file.exists()&&file.length()>0){
+   if(videoFinalized&&advancedMode&&file!=null&&file.exists()&&file.length()>0){
     File merged=privateFile("merged");
     boolean mergedOk=false;
     try{Mp4Merger.merge(file,audioFile,merged);mergedOk=merged.exists()&&merged.length()>0;}catch(Exception e){android.util.Log.e("GameRecorder","Audio mux failed; preserving video-only recording",e);}
-    if(mergedOk){uri=Mp4Merger.publish(this,merged);merged.delete();}
-    else {uri=publishVideoOnly(file);}
+    if(mergedOk){
+     try{uri=Mp4Merger.publish(this,merged);saved=true;}
+     catch(Exception publishError){android.util.Log.e("GameRecorder","Merged export could not be published; trying video-only copy",publishError);uri=publishVideoOnly(file);saved=uri!=null;}
+    } else {uri=publishVideoOnly(file);saved=uri!=null;}
+    if(merged.exists())merged.delete();
+   } else if(videoFinalized&&uri!=null){
+    if(isUriVideoNonEmpty(uri)){
+     ContentValues ready=new ContentValues();ready.put(MediaStore.Video.Media.IS_PENDING,0);getContentResolver().update(uri,ready,null,null);saved=true;
+    } else {getContentResolver().delete(uri,null,null);uri=null;}
+   } else if(videoFinalized&&file!=null&&file.exists()&&file.length()>0){
+    android.media.MediaScannerConnection.scanFile(this,new String[]{file.getAbsolutePath()},new String[]{"video/mp4"},null);saved=true;
    } else if(uri!=null){
-    ContentValues ready=new ContentValues();ready.put(MediaStore.Video.Media.IS_PENDING,0);getContentResolver().update(uri,ready,null,null);
-   } else if(file!=null&&file.exists()){
-    android.media.MediaScannerConnection.scanFile(this,new String[]{file.getAbsolutePath()},new String[]{"video/mp4"},null);
+    // Remove the pending MediaStore row if encoder preparation or recording failed.
+    getContentResolver().delete(uri,null,null);uri=null;
    }
   }catch(Exception e){android.util.Log.e("GameRecorder","Could not finalize recording",e);Toast.makeText(this,"Recording could not be finalized: "+e.getMessage(),Toast.LENGTH_LONG).show();}
-  if(advancedMode&&file!=null)file.delete();if(audioFile!=null)audioFile.delete();
+  if(advancedMode&&file!=null&&saved)file.delete();
+  if(audioFile!=null)audioFile.delete();
   if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&android.provider.Settings.canDrawOverlays(this))
    startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
   recording=false;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",false).putBoolean("recording_paused",false).apply();stopForeground(true);stopSelf();
-  if(had)Toast.makeText(this,"Recording saved in Movies / Game Recorder",Toast.LENGTH_LONG).show();
+  if(had&&saved)Toast.makeText(this,"Recording saved in Movies / Game Recorder",Toast.LENGTH_LONG).show();
+  else if(had&&!saved)Toast.makeText(this,"Recording failed or was too short to save. Try recording a few seconds and stop again.",Toast.LENGTH_LONG).show();
   file=null;audioFile=null;uri=null;advancedMode=false;
+ }
+ private boolean isUriVideoNonEmpty(Uri target){
+  try(android.database.Cursor c=getContentResolver().query(target,new String[]{MediaStore.Video.Media.SIZE},null,null,null)){
+   return c!=null&&c.moveToFirst()&&c.getLong(0)>0;
+  }catch(Exception e){return false;}
  }
  private Uri publishVideoOnly(File source)throws Exception{
   if(Build.VERSION.SDK_INT>=29){
