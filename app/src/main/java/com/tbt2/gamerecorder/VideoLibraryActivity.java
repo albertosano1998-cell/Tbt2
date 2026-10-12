@@ -216,21 +216,28 @@ public class VideoLibraryActivity extends Activity {
     }
 
     private void compress(Uri source, String sourceName) {
-        final String[] labels = {"Compact — smallest file", "Balanced — recommended", "High quality — larger file"};
         final int[] bitrates = {1200000, 2500000, 5000000};
         final long durationMs = getDurationMs(source);
-        final String estimate = durationMs > 0
-                ? "\nApproximate output: " + bytes((long) ((bitrates[1] + 128000L) * durationMs / 8000L))
-                : "";
+        final String[] labels = {
+                "Compact — smallest file" + estimateSuffix(durationMs, bitrates[0]),
+                "Balanced — recommended" + estimateSuffix(durationMs, bitrates[1]),
+                "High quality — larger file" + estimateSuffix(durationMs, bitrates[2])
+        };
         new AlertDialog.Builder(this)
                 .setTitle("Compress video")
-                .setMessage("Choose an export profile. Re-encoding can reduce quality; the original is always kept." + estimate)
+                .setMessage("Choose an export profile. Estimates include approximately 128 kbps audio. Re-encoding can reduce quality; the original is always kept.")
                 .setSingleChoiceItems(labels, 1, (dialog, which) -> {
                     dialog.dismiss();
                     compressAtBitrate(source, sourceName, bitrates[which], labels[which]);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private String estimateSuffix(long durationMs, int videoBitrate) {
+        if (durationMs <= 0) return "";
+        long estimatedBytes = (long) ((videoBitrate + 128000L) * (durationMs / 1000d) / 8d);
+        return " • approx. " + bytes(estimatedBytes);
     }
 
     private long getDurationMs(Uri source) {
