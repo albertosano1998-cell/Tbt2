@@ -108,9 +108,11 @@ public class ScreenRecordService extends Service {
   }catch(Exception e){android.util.Log.e("GameRecorder","Could not finalize recording",e);Toast.makeText(this,"Recording could not be finalized: "+e.getMessage(),Toast.LENGTH_LONG).show();}
   if(advancedMode&&file!=null&&saved)file.delete();
   if(audioFile!=null)audioFile.delete();
+  recording=false;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",false).putBoolean("recording_paused",false).apply();
+  // Refresh the overlay only after the shared recording state is reset, so it returns to REC.
   if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false)&&android.provider.Settings.canDrawOverlays(this))
    startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));
-  recording=false;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",false).putBoolean("recording_paused",false).apply();stopForeground(true);stopSelf();
+  stopForeground(true);stopSelf();
   if(had&&saved)Toast.makeText(this,"Recording saved in Movies / Game Recorder",Toast.LENGTH_LONG).show();
   else if(had&&!saved)Toast.makeText(this,"Recording failed or was too short to save. Try recording a few seconds and stop again.",Toast.LENGTH_LONG).show();
   file=null;audioFile=null;uri=null;advancedMode=false;
