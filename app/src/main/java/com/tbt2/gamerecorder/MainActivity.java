@@ -9,8 +9,9 @@ import android.net.Uri;
 import android.view.Gravity;
 import android.widget.*;
 public class MainActivity extends Activity {
+ public static final String EXTRA_START_FROM_OVERLAY="start_from_overlay";
  private static final int CAPTURE=4812, OVERLAY=4813; private RadioGroup audio,quality; private TextView status;
- public void onCreate(Bundle b){super.onCreate(b);ui();}
+ public void onCreate(Bundle b){super.onCreate(b);ui();if(getIntent().getBooleanExtra(EXTRA_START_FROM_OVERLAY,false))startCapture();}
  private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
  private LinearLayout.LayoutParams lp(){return new LinearLayout.LayoutParams(-1,-2);}
  private void ui(){
@@ -21,6 +22,7 @@ public class MainActivity extends Activity {
   TextView note=new TextView(this);note.setText("Internal audio needs Android 10+ and may be blocked by some games/apps. Game + microphone mixes both sources.");note.setTextColor(0xFF8A4B08);note.setTextSize(12);root.addView(note,lp());
   root.addView(heading("Video quality"));quality=new RadioGroup(this);quality.setOrientation(1);radio(quality,"Standard — 720p / 5 Mbps",720,true);radio(quality,"High — native screen resolution / 12 Mbps",1080,false);radio(quality,"Compact — 480p / 2.5 Mbps",480,false);root.addView(quality);
   Button start=new Button(this);start.setText("Start screen recording");LinearLayout.LayoutParams blp=lp();blp.topMargin=dp(18);root.addView(start,blp);start.setOnClickListener(v->startCapture());
+  Button library=new Button(this);library.setText("Recordings & video compression");LinearLayout.LayoutParams rlp=lp();rlp.topMargin=dp(6);root.addView(library,rlp);library.setOnClickListener(v->startActivity(new Intent(this,VideoLibraryActivity.class)));
   Button overlay=new Button(this);overlay.setText("Enable floating recording controls");LinearLayout.LayoutParams olp=lp();olp.topMargin=dp(6);root.addView(overlay,olp);overlay.setOnClickListener(v->enableOverlay());
   status=new TextView(this);status.setText("Ready. Android will ask you to approve screen capture.");LinearLayout.LayoutParams slp=lp();slp.topMargin=dp(10);root.addView(status,slp);
   TextView tip=new TextView(this);tip.setText("Use the floating button to pause/resume and long-press it to stop. The overlay is marked secure to ask Android to exclude it from screen capture; confirm this on your device.");LinearLayout.LayoutParams tlp=lp();tlp.topMargin=dp(12);root.addView(tip,tlp);
