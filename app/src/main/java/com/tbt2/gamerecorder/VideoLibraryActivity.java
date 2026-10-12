@@ -1,6 +1,7 @@
 package com.tbt2.gamerecorder;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
@@ -12,12 +13,14 @@ import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaItem.ClippingConfiguration;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.transformer.Composition;
 import androidx.media3.transformer.DefaultEncoderFactory;
@@ -119,10 +122,14 @@ public class VideoLibraryActivity extends Activity {
             try { startActivity(i); } catch (Exception e) { Toast.makeText(this, "No video player found.", Toast.LENGTH_LONG).show(); }
         });
         Button compress = new Button(this);
-        compress.setText("Compress copy");
+        compress.setText("Compress");
         compress.setOnClickListener(v -> compress(uri, name));
+        Button trim = new Button(this);
+        trim.setText("Trim");
+        trim.setOnClickListener(v -> showTrimDialog(uri, name));
         actions.addView(play, new LinearLayout.LayoutParams(0, -2, 1));
         actions.addView(compress, new LinearLayout.LayoutParams(0, -2, 1));
+        actions.addView(trim, new LinearLayout.LayoutParams(0, -2, 1));
         card.addView(actions);
         View divider = new View(this);
         divider.setBackgroundColor(0xFFDDDDDD);
@@ -136,6 +143,75 @@ public class VideoLibraryActivity extends Activity {
         if (n >= 1024L*1024*1024) return String.format(java.util.Locale.US, "%.2f GB", n/(1024d*1024*1024));
         if (n >= 1024L*1024) return String.format(java.util.Locale.US, "%.1f MB", n/(1024d*1024));
         return String.format(java.util.Locale.US, "%.0f KB", n/1024d);
+    }
+
+    private void showTrimDialog(Uri source, String sourceName) {
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(dp(20), dp(8), dp(20), dp(4));
+        EditText start = new EditText(this);
+        start.setHint("Start time in seconds (e.g. 0)");
+        start.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        EditText end = new EditText(this);
+        end.setHint("End time in seconds (e.g. 30)");
+        end.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        fields.addView(start);
+        fields.addView(end);
+        new AlertDialog.Builder(this).setTitle("Trim recording")
+                .setMessage("Enter the start and end time in seconds. The original video will be kept.")
+                .setView(fields)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Export trimmed copy", (dialog, which) -> {
+                    try {
+                        double from = Double.parseDouble(start.getText().toString().trim());
+                        double to = Double.parseDouble(end.getText().toString().trim());
+                        if (from < 0 || to <= from) throw new IllegalArgumentException("End time must be greater than start time.");
+                        exportTrim(source, sourceName, Math.round(from * 1000), Math.round(to * 1000));
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Enter valid start and end times.", Toast.LENGTH_LONG).show();
+                    }
+                }).show();
+    }
+
+    private void exportTrim(Uri source, String sourceName, long fromMs, long toMs) {
+        if (transformer != null) {
+            Toast.makeText(this, "Another export is already running.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        File dir = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "GameRecorder");
+        if (!dir.exists()) dir.mkdirs();
+        File output = new File(dir, "trimmed_" + System.currentTimeMillis() + ".mp4");
+        try {
+            ClippingConfiguration clip = new ClippingConfiguration.Builder()
+                    .setStartPositionMs(fromMs).setEndPositionMs(toMs).build();
+            MediaItem item = new MediaItem.Builder().setUri(source).setClippingConfiguration(clip).build();
+            transformer = new Transformer.Builder(this).addListener(new Transformer.Listener() {
+                @Override public void onCompleted(Composition composition, ExportResult result) {
+                    transformer = null;
+                    try {
+                        if (!output.exists() || output.length() == 0) throw new IllegalStateException("Empty export");
+                        publish(output, sourceName.replaceAll("\\.[^.]+$", "") + "_trimmed");
+                        output.delete();
+                        status.setText("Trimmed copy saved. Original kept.");
+                        loadVideos();
+                    } catch (Exception e) {
+                        output.delete();
+                        status.setText("Could not save trimmed video: " + e.getMessage());
+                    }
+                }
+                @Override public void onError(Composition composition, ExportResult result, ExportException error) {
+                    transformer = null;
+                    output.delete();
+                    status.setText("Trim failed: " + error.getMessage());
+                }
+            }).build();
+            transformer.start(item, output.getAbsolutePath());
+            status.setText("Trimming video… Keep the app open until export finishes.");
+        } catch (Exception e) {
+            transformer = null;
+            output.delete();
+            status.setText("Could not start trim: " + e.getMessage());
+        }
     }
 
     private void compress(Uri source, String sourceName) {
