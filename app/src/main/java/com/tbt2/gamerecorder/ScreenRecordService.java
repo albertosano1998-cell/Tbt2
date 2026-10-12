@@ -55,7 +55,7 @@ public class ScreenRecordService extends Service {
   if(projection==null)throw new IOException("Screen capture permission missing");
   if(advancedMode){advancedAudio=new AdvancedAudioRecorder(projection,audioMode==3,audioFile);advancedAudio.start();}
   rec.start();vd=projection.createVirtualDisplay("GameRecorder",w,h,dm.densityDpi,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,rec.getSurface(),null,null);
-  recording=true;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",true).putBoolean("recording_paused",false).apply();update("Recording • Pause or Stop from notification");
+  recording=true;paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_active",true).putBoolean("recording_paused",false).apply();if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false))startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));update("Recording • Pause or Stop from notification");
  }
  private void foreground(String text,boolean needsAudio){
   Notification n=notification(text);
@@ -71,8 +71,8 @@ public class ScreenRecordService extends Service {
   return b.setSmallIcon(android.R.drawable.presence_video_online).setContentTitle("Game Recorder").setContentText(text).setContentIntent(op).setOngoing(recording).addAction(new Notification.Action.Builder(null,paused?"Resume":"Pause",pp).build()).addAction(new Notification.Action.Builder(null,"Stop",sp).build()).build();
  }
  private void update(String t){((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(NOTE_ID,notification(t));}
- private void pauseRecording(){if(!recording||paused||rec==null)return;try{rec.pause();if(advancedAudio!=null)advancedAudio.pause();paused=true;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",true).apply();update("Recording paused");}catch(Exception e){Toast.makeText(this,"Could not pause: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
- private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
+ private void pauseRecording(){if(!recording||paused||rec==null)return;try{rec.pause();if(advancedAudio!=null)advancedAudio.pause();paused=true;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",true).apply();if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false))startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));update("Recording paused");}catch(Exception e){Toast.makeText(this,"Could not pause: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
+ private void resumeRecording(){if(!recording||!paused||rec==null)return;try{rec.resume();if(advancedAudio!=null)advancedAudio.resume();paused=false;getSharedPreferences("GameRecorder",MODE_PRIVATE).edit().putBoolean("recording_paused",false).apply();if(getSharedPreferences("GameRecorder",MODE_PRIVATE).getBoolean("overlay_enabled",false))startService(new Intent(this,OverlayControlService.class).setAction(OverlayControlService.SHOW));update("Recording resumed");}catch(Exception e){Toast.makeText(this,"Could not resume: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
  private void finishRecording(){
   boolean had=rec!=null;
   if(vd!=null){vd.release();vd=null;}
