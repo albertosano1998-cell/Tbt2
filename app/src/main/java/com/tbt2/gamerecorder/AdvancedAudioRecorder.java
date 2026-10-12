@@ -99,7 +99,10 @@ public final class AdvancedAudioRecorder {
                 if (paused) { Thread.sleep(20); continue; }
                 int got = playback.read(game, 0, game.length, AudioRecord.READ_NON_BLOCKING);
                 if (got == 0) { Thread.sleep(5); continue; }
-                if (got <= 0) continue;
+                if (got < 0) {
+                    Log.e(TAG, "Internal audio capture stopped with AudioRecord error " + got);
+                    break;
+                }
                 int samples = Math.min(got, game.length);
                 if (microphone != null) {
                     int micGot;
@@ -197,7 +200,20 @@ public final class AdvancedAudioRecorder {
         releaseRecord(playback); playback = null;
         releaseRecord(microphone); microphone = null;
         if (worker != null) {
-            try { worker.join(1500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            try {
+                // Let the worker finish its AAC end-of-stream drain before releasing the codec/muxer.
+                worker.join(4000);
+                if (worker.isAlive()) {
+                    worker.interrupt();
+                    worker.join(2000);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            if (worker.isAlive()) {
+                Log.e(TAG, "Audio worker did not stop in time; skipping unsafe codec teardown");
+                return;
+            }
             worker = null;
         }
         if (encoder != null) { try { encoder.stop(); } catch (Exception ignored) {} try { encoder.release(); } catch (Exception ignored) {} encoder = null; }
