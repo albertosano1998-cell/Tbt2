@@ -220,7 +220,7 @@ public class VideoLibraryActivity extends Activity {
         final int[] bitrates = {1200000, 2500000, 5000000};
         final long durationMs = getDurationMs(source);
         final String estimate = durationMs > 0
-                ? "\\nApproximate output: " + bytes((long) ((bitrates[1] + 128000L) * durationMs / 8000L))
+                ? "\nApproximate output: " + bytes((long) ((bitrates[1] + 128000L) * durationMs / 8000L))
                 : "";
         new AlertDialog.Builder(this)
                 .setTitle("Compress video")
