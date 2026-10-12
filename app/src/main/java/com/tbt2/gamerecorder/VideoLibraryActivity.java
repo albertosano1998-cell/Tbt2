@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -190,7 +191,7 @@ public class VideoLibraryActivity extends Activity {
                     transformer = null;
                     try {
                         if (!output.exists() || output.length() == 0) throw new IllegalStateException("Empty export");
-                        publish(output, sourceName.replaceAll("\\.[^.]+$", "") + "_trimmed");
+                        publish(output, sourceName, "trimmed");
                         output.delete();
                         status.setText("Trimmed copy saved. Original kept.");
                         loadVideos();
@@ -215,30 +216,66 @@ public class VideoLibraryActivity extends Activity {
     }
 
     private void compress(Uri source, String sourceName) {
+        final String[] labels = {"Compact — smallest file", "Balanced — recommended", "High quality — larger file"};
+        final int[] bitrates = {1200000, 2500000, 5000000};
+        final long durationMs = getDurationMs(source);
+        final String estimate = durationMs > 0
+                ? "\\nApproximate output: " + bytes((long) ((bitrates[1] + 128000L) * durationMs / 8000L))
+                : "";
+        new AlertDialog.Builder(this)
+                .setTitle("Compress video")
+                .setMessage("Choose an export profile. Re-encoding can reduce quality; the original is always kept." + estimate)
+                .setSingleChoiceItems(labels, 1, (dialog, which) -> {
+                    dialog.dismiss();
+                    compressAtBitrate(source, sourceName, bitrates[which], labels[which]);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private long getDurationMs(Uri source) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(this, source);
+            String value = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            return value == null ? -1 : Long.parseLong(value);
+        } catch (Exception ignored) {
+            return -1;
+        } finally {
+            try { retriever.release(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void compressAtBitrate(Uri source, String sourceName, int bitrate, String profile) {
         if (transformer != null) {
-            Toast.makeText(this, "A compression is already running.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "An export is already running.", Toast.LENGTH_SHORT).show();
             return;
         }
+        File dir = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "GameRecorder");
+        if (!dir.exists() && !dir.mkdirs()) {
+            status.setText("Could not create temporary export folder.");
+            return;
+        }
+        File output = new File(dir, "compressed_" + System.currentTimeMillis() + ".mp4");
         try {
-            File dir = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "GameRecorder");
-            if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("Cannot create temporary folder");
-            File output = new File(dir, "compressed_" + System.currentTimeMillis() + ".mp4");
             transformer = new Transformer.Builder(this)
                     .setVideoMimeType(MimeTypes.VIDEO_H264)
                     .setEncoderFactory(new DefaultEncoderFactory.Builder(this)
-                            .setRequestedVideoEncoderSettings(new VideoEncoderSettings.Builder().setBitrate(2500000).build())
+                            .setRequestedVideoEncoderSettings(new VideoEncoderSettings.Builder().setBitrate(bitrate).build())
                             .build())
                     .addListener(new Transformer.Listener() {
                         @Override public void onCompleted(Composition composition, ExportResult result) {
-                            Transformer done = transformer;
                             transformer = null;
                             try {
-                                if (!output.exists() || output.length() == 0) throw new IllegalStateException("The encoder produced an empty file");
-                                Uri saved = publish(output, sourceName);
+                                if (!output.exists() || output.length() == 0)
+                                    throw new IllegalStateException("The encoder produced an empty file");
                                 long outSize = output.length();
+                                publish(output, sourceName, "compressed_" + profile.toLowerCase(java.util.Locale.US).replaceAll("[^a-z0-9]+", "_"));
                                 output.delete();
-                                status.setText("Compression finished. Saved copy (" + bytes(outSize) + "). Original retained.");
-                                Toast.makeText(VideoLibraryActivity.this, "Compressed copy saved to Movies/Game Recorder.", Toast.LENGTH_LONG).show();
+                                status.setText(profile + " compression finished. Output: " + bytes(outSize)
+                                        + ". Original retained.");
+                                Toast.makeText(VideoLibraryActivity.this, "Compressed copy saved to Movies/Game Recorder.",
+                                        Toast.LENGTH_LONG).show();
                                 loadVideos();
                             } catch (Exception e) {
                                 output.delete();
@@ -252,17 +289,18 @@ public class VideoLibraryActivity extends Activity {
                         }
                     }).build();
             transformer.start(MediaItem.fromUri(source), output.getAbsolutePath());
-            status.setText("Compressing… Keep the app open until export finishes.");
+            status.setText("Compressing (" + profile + ")… Keep the app open until export finishes.");
         } catch (Exception e) {
             transformer = null;
+            output.delete();
             status.setText("Could not start compression: " + e.getMessage());
         }
     }
 
-    private Uri publish(File file, String originalName) throws Exception {
+    private Uri publish(File file, String originalName, String operation) throws Exception {
         ContentValues values = new ContentValues();
         String base = originalName == null ? "GameRecorder" : originalName.replaceAll("\\.[^.]+$", "");
-        values.put(MediaStore.Video.Media.DISPLAY_NAME, base + "_compressed_" + System.currentTimeMillis() + ".mp4");
+        values.put(MediaStore.Video.Media.DISPLAY_NAME, base + "_" + operation + "_" + System.currentTimeMillis() + ".mp4");
         values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
         if (Build.VERSION.SDK_INT >= 29) {
             values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/Game Recorder");
