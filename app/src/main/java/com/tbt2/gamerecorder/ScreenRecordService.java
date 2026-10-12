@@ -35,7 +35,7 @@ public class ScreenRecordService extends Service {
   DisplayMetrics dm=new DisplayMetrics();((WindowManager)getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(dm);
   int sw=dm.widthPixels&~1,sh=dm.heightPixels&~1;int q=i.getIntExtra(QUALITY,720),w=sw,h=sh;
   if(q==720||q==480){int target=q;float s=Math.min(1f,target/(float)Math.max(sw,sh));w=Math.max(2,((int)(sw*s))&~1);h=Math.max(2,((int)(sh*s))&~1);}
-  int bitrate=q==480?2500000:(q==720?5000000:12000000);
+  int bitrate=q==480?4000000:(q==720?7000000:12000000);
   File storage=getExternalFilesDir(Environment.DIRECTORY_MOVIES); if(storage==null)storage=getFilesDir(); long free=storage.getUsableSpace(); if(free<300L*1024*1024)throw new IOException("Less than 300 MB storage remains. Free space before recording."); maxBytes=Math.max(100L*1024*1024,free-200L*1024*1024);
   advancedMode=(audioMode==2||audioMode==3);
   if(advancedMode){file=privateFile("video_tmp");audioFile=privateFile("audio_tmp");}
