@@ -19,3 +19,13 @@ Android screen recorder configured for Android 8+ and intended for the Infinix X
 
 ## Build
 GitHub Actions builds the debug APK on pushes to `main` and `game-recorder`. Download the `GameRecorder-debug` artifact from the latest successful workflow run.
+
+
+## Live Japanese subtitle translator (added on `live-japanese-subtitles`)
+- Adds a live subtitle translator alongside the existing screen recorder.
+- Captures eligible internal media/game playback using Android playback capture while another video app plays; capture depends on the source app allowing it.
+- Uses Vosk Japanese speech recognition and on-device ML Kit Japanese-to-English translation. Download the Japanese recognition model and translation model once before expecting offline use.
+- Shows translated captions in a floating overlay while the supported video app remains in use.
+- Online streaming apps and offline videos in external players are supported only when Android allows that app's audio to be captured. DRM/restricted apps may return silence.
+- The first build is an integration build and requires testing on the Infinix X693. The recognizer model is downloaded on first use and can be large; keep enough storage and internet data available.
+- Translation is on-device after model downloads; this implementation does not upload audio to a cloud speech service.
