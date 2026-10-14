@@ -1,7 +1,7 @@
 name: Game Recorder + Live Subtitle Translator APK
 on:
   push:
-    branches: [main, game-recorder]
+    branches: [main, game-recorder, live-japanese-subtitles]
   workflow_dispatch:
 permissions:
   contents: read
