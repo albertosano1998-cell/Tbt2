@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
+import android.media.AudioPlaybackCaptureConfiguration;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.projection.MediaProjection;
@@ -21,8 +22,8 @@ import android.view.Gravity;
 import android.view.WindowManager;
 import android.widget.TextView;
 
-import com.alphacephei.vosk.Model;
-import com.alphacephei.vosk.Recognizer;
+import org.vosk.Model;
+import org.vosk.Recognizer;
 import com.google.mlkit.nl.translate.TranslateLanguage;
 import com.google.mlkit.nl.translate.Translation;
 import com.google.mlkit.nl.translate.Translator;
